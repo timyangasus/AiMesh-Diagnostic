@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AiMesh Diagnostic">
+  <title>AiMesh Diagnostic</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Demo control bar (meta layer, not part of the product UI; hidden in installed PWA) -->
+  <div class="demo-bar" id="demo-bar">
+    <div class="demo-bar-pagenum-wrap">
+      <button class="demo-bar-pagenum-btn" id="demo-bar-pagenum-btn" title="跳到指定頁面編號">
+        <span class="demo-bar-pagenum" id="demo-bar-pagenum">--</span>
+        <span class="demo-bar-pagenum-arrow">&#9662;</span>
+      </button>
+      <div class="demo-bar-pagelist" id="demo-bar-pagelist"></div>
+    </div>
+    <span class="demo-bar-label">FLOW://</span>
+    <span class="demo-bar-desc" id="demo-bar-desc"></span>
+    <div class="demo-bar-decisions" id="demo-bar-decisions"></div>
+    <button class="demo-bar-reset" id="demo-bar-reset" title="重置流程回到起點">&#8634; RESET</button>
+  </div>
+
+  <div id="stage">
+    <div id="device">
+      <div id="screen"></div>
+      <div id="fake-statusbar" aria-hidden="true">
+        <span class="sb-time" id="sb-time">9:41</span>
+        <span class="sb-icons">
+          <svg viewBox="0 0 18 12" width="18" height="12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx=".7"/><rect x="5" y="5.5" width="3" height="6.5" rx=".7"/><rect x="10" y="3" width="3" height="9" rx=".7"/><rect x="15" y="0" width="3" height="12" rx=".7"/></svg>
+          <svg viewBox="0 0 16 12" width="16" height="12" fill="currentColor"><path d="M8 2.3a9.8 9.8 0 0 1 6.7 2.6l1.1-1.1A11.4 11.4 0 0 0 8 .7 11.4 11.4 0 0 0 .2 3.8l1.1 1.1A9.8 9.8 0 0 1 8 2.3zm0 3.3a6.5 6.5 0 0 1 4.4 1.7l1.1-1.1A8 8 0 0 0 8 4a8 8 0 0 0-5.5 2.2l1.1 1.1A6.5 6.5 0 0 1 8 5.6zm0 3.3a3.2 3.2 0 0 1 2.1.8L8 11.8 5.9 9.7A3.2 3.2 0 0 1 8 8.9z"/></svg>
+          <svg viewBox="0 0 28 13" width="28" height="13" fill="none"><rect x=".5" y=".5" width="24" height="12" rx="3.8" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="21" height="9" rx="2.5" fill="currentColor"/><path d="M26 4.5v4c.8-.3 1.4-1.1 1.4-2s-.6-1.7-1.4-2z" fill="currentColor" opacity=".45"/></svg>
+        </span>
+      </div>
+      <img class="tabbar" src="assets/tabbar.png" alt="Home, Devices, Dashboard, SDN, Settings">
+      <div id="toast" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+  <!-- Demo-only decision panel -->
+  <div class="flow-decision" id="flow-decision" role="dialog" aria-labelledby="flow-decision-title">
+    <button class="flow-decision-close" id="flow-decision-close" aria-label="關閉">&times;</button>
+    <span class="flow-decision-tag">DEMO 流程判斷</span>
+    <div class="flow-decision-title" id="flow-decision-title"></div>
+    <div class="flow-decision-options" id="flow-decision-options"></div>
+  </div>
+
+  <script src="screens.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
