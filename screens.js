@@ -1,6 +1,6 @@
 // AiMesh Diagnostic flow screens, in flow order.
 // code: page number shown in the demo bar, <flow>_<seq> (e.g. 1_010).
-//   1_xxx main flow · 2_xxx Testing History · 3_xxx Advanced Test · 4_xxx result page, version B (tabs)
+//   1_xxx main flow · 2_xxx Testing History · 3_xxx Advanced Test
 // description: plain-language line shown in the demo bar's page list.
 // render(): the screen's HTML. Elements with data-go="<screen id>" navigate;
 // screens not added yet show a toast. Layout is in pt on the 390 × 844 canvas.
@@ -44,7 +44,7 @@
     { down: 24, up: 16, udp: { retrans: '0.82%', loss: '0.1%', jitter: '0.5ms' }, tcp: { deviation: '4 ms', latency: '18 ms', retrans: '0.82%' } },
   ];
   const WEAK_BELOW = 50; // Mbps download; below this a link is drawn orange
-  const HOP_MS = 2600;   // how long each hop's test runs
+  const HOP_MS = 500;    // how long each hop's test runs
 
   // Devices for Advanced Test (Select Server / Select Client)
   const SERVERS = [
@@ -82,7 +82,6 @@
     client: 4,
     duration: '30s',
     protocol: 'UDP',
-    tab: 'suggest',     // version B result tab
   };
 
   const fmt = v => (v >= 100 || v % 1 ? v.toFixed(1) : String(v));
@@ -163,29 +162,28 @@
       </div>`;
   }
 
-  // Detail rows per protocol, as in the UDP / TCP frames; 'ALL' is the version B page
+  // Detail rows per protocol, as in the UDP / TCP frames
   function hopRows(proto) {
     const h = HOPS[STATE.hop];
-    const rows = [['Download Speed', `${Math.round(h.down)} Mbps`], ['Upload Speed', `${Math.round(h.up)} Mbps`], ['Protocol', proto === 'ALL' ? 'UDP' : proto]];
-    if (proto !== 'UDP') rows.push(['Deviation', h.tcp.deviation], ['Latency', h.tcp.latency], ['Retransmission', h.tcp.retrans]);
-    if (proto === 'UDP') rows.push(['Retransmission', h.udp.retrans]);
-    if (proto !== 'TCP') rows.push(['Pack Lost', h.udp.loss], ['Jitter', h.udp.jitter]);
+    const rows = [['Download Speed', `${Math.round(h.down)} Mbps`], ['Upload Speed', `${Math.round(h.up)} Mbps`], ['Protocol', proto]];
+    if (proto === 'UDP') rows.push(['Retransmission', h.udp.retrans], ['Pack Lost', h.udp.loss], ['Jitter', h.udp.jitter]);
+    else rows.push(['Deviation', h.tcp.deviation], ['Latency', h.tcp.latency], ['Retransmission', h.tcp.retrans]);
     return `<ul class="kv">${rows.map(([k, v]) => `<li>${k}<b>${v}</b></li>`).join('')}</ul>`;
   }
 
-  function hopScreen(proto, title) {
+  function hopScreen(proto) {
     return () => {
       const a = NODES[STATE.hop], b = NODES[STATE.hop + 1];
       return `
-        ${navbar(title, backBtn, `<button class="navbar-btn navbar-btn-blue" data-toast="Info – 尚未加入" aria-label="說明">${ICON.info}</button>`)}
+        ${navbar('Detail Result', backBtn, `<button class="navbar-btn navbar-btn-blue" data-toast="Info – 尚未加入" aria-label="說明">${ICON.info}</button>`)}
         <div class="body">
           <div class="hop-head">
             <div class="hop-end"><div class="big-node">${ICON[a.icon]}</div>${a.place}</div>
-            <div class="hop-line ${proto === 'UDP' ? 'udp' : 'tcp'}"></div>
+            <div class="hop-line ${proto.toLowerCase()}"></div>
             <div class="hop-end"><div class="big-node">${ICON[b.icon]}</div>${b.place}</div>
           </div>
           ${hopRows(proto)}
-          ${proto === 'ALL' ? '' : '<p class="note">*Note:<br>Results show Mesh connectivity, not actual internet speed. Performance is subject to hardware, distance, and environmental interference.</p>'}
+          <p class="note">*Note:<br>Results show Mesh connectivity, not actual internet speed. Performance is subject to hardware, distance, and environmental interference.</p>
         </div>
         <div class="actions">
           <button class="btn-primary" data-go="feedback">Report Issue</button>
@@ -196,7 +194,7 @@
   // The home page itself, shared by 1_020 and its tip sheet 1_021
   function homeContent() {
     return `
-      ${navbar('AiMesh Diagnostic', backBtn, `<button class="navbar-btn navbar-btn-sub" data-go="home-tip" aria-label="說明">${ICON.info}</button>${historyBtn}`)}
+      ${navbar('AiMesh Diagnostic', `<button class="navbar-btn" data-toast="Diagnostics 選單不在這次範圍" aria-label="返回">${ICON.back}</button>`, `<button class="navbar-btn navbar-btn-sub" data-go="home-tip" aria-label="說明">${ICON.info}</button>${historyBtn}`)}
       <div class="body home-body">
         <img class="illustration" src="assets/illustration.png" alt="手持手機在家中各處測試網路訊號" width="309" height="222">
         <p class="intro">Test real-time connection quality to diagnose and optimize your network experience.</p>
@@ -208,9 +206,8 @@
   }
 
   function historyCards() {
-    const to = window.AIMESH_decision('layout') === 'b' ? 'result-b-suggest' : 'result';
     return HISTORY.map(r => `
-      <div class="h-card" data-go="${to}" data-rec="${r.id}">
+      <div class="h-card" data-go="result" data-rec="${r.id}">
         <button class="h-more" data-go="history-actions" data-rec="${r.id}" aria-label="更多">${ICON.more}</button>
         <div class="h-top">
           <div><div class="h-at">${r.at}</div><div class="h-note">${esc(r.note)}</div></div>
@@ -229,27 +226,6 @@
     else STATE.view = r;
   });
 
-  // Version B result header: grade, date, speeds and an outlined Test Again
-  function resultB(tab) {
-    const r = STATE.view;
-    return `
-      ${navbar('AiMesh Diagnostic', backBtn, historyBtn)}
-      <div class="body">
-        <div class="summary summary-b">
-          <div class="summary-b-top"><span class="grade ${r.grade === 'Good' ? '' : 'notice'}">${r.grade}</span><span class="stamp">${r.at}</span></div>
-          <div class="grade-desc">Your network is healthy and performing well.</div>
-          <div class="pair">${r.router} <span class="arrows">↔</span> Phone</div>
-          ${speeds(r, true)}
-          <button class="btn-outline" data-go="testing">Test Again</button>
-        </div>
-        <div class="tabs">
-          <button class="${tab === 'suggest' ? 'on' : ''}" data-go="result-b-suggest">Suggestions</button>
-          <button class="${tab === 'detail' ? 'on' : ''}" data-go="result-b-detail">Detail Result</button>
-        </div>
-        ${tab === 'suggest' ? resultItems(r) : `<div class="tab-panel">${topology(true, 'data-go="hop-b"')}</div>`}
-      </div>`;
-  }
-
   function deviceList(list, key) {
     return `
       <div class="body">
@@ -264,28 +240,121 @@
   }
   const pickDevice = key => el => onTap(el, '[data-pick]', n => { STATE[key] = +n.dataset.pick; });
 
+  // Hidden for now: testing variant where a node's firmware can't be tested (not in the flow)
+  const TESTING_SKIP = {
+      id: 'testing-skip',
+      back: 'home',
+      code: '1_031',
+      name: '測試中',
+      description: '測試中：保留上下測試主線；右側顯示廚房不支援提示，主線測 Home ↔ Bedroom。預覽停留本頁。',
+      figmaNode: '294:412',
+      render: () => `
+        ${navbar('AiMesh Diagnostic', '', '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+        <style>
+          .screen-testing .topology{position:relative;margin:0 18px;padding:24px 0 28px}
+          .screen-testing .node-label{line-height:20px;margin-top:12px}
+          .screen-testing .node-place{display:block;font-size:10px;font-weight:400;color:#75808a;line-height:15px}
+          .screen-testing .test-link-wrap{position:relative;width:100%;height:156px;display:flex;justify-content:center}
+          .screen-testing .test-link-wrap>.link-seg{height:128px;margin:14px 0}
+          .screen-testing .skip-note{position:absolute;left:calc(50% + 29px);top:17px;width:140px;padding:12px 12px;background:#fff8ed;border:1px solid #e5b66d;border-radius:9px;color:#38424a}
+          .screen-testing .skip-note>.node{position:absolute;left:-17px;top:17px;width:26px;height:26px}
+          .screen-testing .skip-note .face{border-color:#d4a34e;color:#a87925}
+          .screen-testing .skip-note strong{display:block;font-size:12px;margin-left:4px}
+          .screen-testing .skip-note small{display:block;font-size:10px;color:#7b6a4d;margin:4px 0 9px 4px}
+          .screen-testing .skip-note p{font-size:11px;line-height:1.45;margin:0}
+          .screen-testing .skip-badge{display:inline-block;font-size:9px;color:#8c6522;background:#f9e9c9;border-radius:4px;padding:2px 5px;margin-bottom:5px}
+          .screen-testing .measured-pair{position:absolute;top:10px;left:0;width:100%;text-align:center;font-size:10px;color:#6c7b88}
+          .screen-testing .measured-card{height:102px;padding-top:23px}
+          .screen-testing .card+.node-label{margin-top:30px}
+          .screen-testing .topology>.link-seg{height:42px;margin:14px 0 12px}
+          .screen-testing .testing-footer{flex:none;padding:12px 20px 14px;border-top:1px solid #e9edf1;background:#fff;box-shadow:0 -5px 16px #18384d05}
+          .screen-testing .test-notice{display:flex;gap:10px;align-items:flex-start;background:#fff7e8;border:1px solid #ead2a6;border-radius:9px;padding:12px;color:#725222}
+          .screen-testing .test-notice svg{flex:none;width:19px;height:19px;margin-top:1px}
+          .screen-testing .test-notice strong{display:block;font-size:12px;line-height:17px;margin-bottom:3px}
+          .screen-testing .test-notice p{font-size:11px;line-height:16px;margin:0;color:#776850}
+          .screen-testing .test-footer-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px}
+          .screen-testing .test-footer-row .test-caption{margin:0;text-align:left;font-size:11px}
+          .screen-testing .test-caption{font-size:11px;line-height:1.5;color:#68717a;margin:17px 22px 0;text-align:center}
+          .screen-testing .test-replay{border:0;background:none;color:var(--blue);font-size:11px;margin:0;padding:5px 0;white-space:nowrap;cursor:pointer}
+        </style>
+        <div class="body">
+          <div class="topology">
+            ${nodeEl(NODES[0])}
+            <div class="node-label">ZenWiFi BT8<span class="node-place">Home</span></div>
+            <div class="test-link-wrap">
+              <div class="link-seg" data-link><span class="dots"><i></i><i></i><i></i><i></i><i></i></span></div>
+              <aside class="skip-note" aria-label="Kitchen device skipped">
+                <div class="node"><span class="face">${ICON.kitchen}</span></div>
+                <strong>ZenWiFi BT10</strong><small>Kitchen</small>
+                <span class="skip-badge">Not tested</span>
+                <p>Firmware does not support testing.</p>
+              </aside>
+            </div>
+            ${[
+              {pair:'Home ↔ Bedroom',name:'ZenWiFi BT10',place:'Bedroom',icon:'bedroom'},
+              {pair:'Bedroom ↔ Phone',name:'Phone',place:'',icon:'phone'},
+            ].map((n,i)=>`${i ? '<div class="link-seg" data-link><span class="dots"><i></i><i></i><i></i><i></i><i></i></span></div>' : ''}
+              <div class="card measured-card" data-card>
+                <div class="measured-pair">${n.pair}</div>
+                <div class="col down"><div class="lbl">Download</div><div class="val">---</div><div class="unit">Mbps</div></div>
+                <div class="divider"></div>
+                <div class="col up"><div class="lbl">Upload</div><div class="val">---</div><div class="unit">Mbps</div></div>
+                ${nodeEl(n)}
+              </div>
+              <div class="node-label${i ? ' end' : ''}">${n.name}${n.place ? `<span class="node-place">${n.place}</span>` : ''}</div>`).join('')}
+          </div>
+        </div>
+        <div class="testing-footer">
+          <aside class="test-notice" aria-label="Test coverage notice">
+            ${ICON.info}
+            <div><strong>Kitchen is not included in this test</strong><p>Its firmware is not supported.<br>This does not mean the network is faulty.</p></div>
+          </aside>
+          <div class="test-footer-row">
+            <p class="test-caption" data-testing-status aria-live="polite">Testing Home ↔ Bedroom…</p>
+            <button class="test-replay" data-go="testing">Restart test</button>
+          </div>
+        </div>`,
+      mount: el => {
+        let alive = true;
+        const cards = el.querySelectorAll('[data-card]');
+        const nodes = el.querySelectorAll('[data-node]');
+        const links = el.querySelectorAll('[data-link]');
+        (async () => {
+          for (let i = 0; i < 2 && alive; i++) {
+            const card = cards[i], h = HOPS[i === 0 ? 0 : 2];
+            const from = nodes[i], to = nodes[i+1];
+            from.classList.add('pulse'); to.classList.add('pulse');
+            links[i].classList.add('active');
+            card.classList.add('running');
+            if (i > 0) card.nextElementSibling.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            el.querySelector('[data-testing-status]').textContent = i === 0 ? 'Testing Home ↔ Bedroom…' : 'Testing Bedroom ↔ Phone…';
+            const start = performance.now();
+            await new Promise(done => {
+              function step(now) {
+                if (!alive) return done();
+                const fraction = Math.min(1, (now-start)/4500);
+                card.querySelector('.down .val').textContent = (h.down*fraction).toFixed(1);
+                card.querySelector('.up .val').textContent = (h.up*fraction).toFixed(1);
+                if(fraction < 1) requestAnimationFrame(step); else done();
+              }
+              requestAnimationFrame(step);
+            });
+            if(!alive) return;
+            from.classList.remove('pulse'); to.classList.remove('pulse');
+            card.classList.remove('running'); card.classList.add('done');
+            links[i].classList.remove('active'); links[i].classList.add(isWeak(h) ? 'weak' : 'good');
+            await wait(350);
+          }
+          if(alive) el.querySelector('[data-testing-status]').textContent = '2 connections tested · Kitchen not tested';
+        })();
+        return () => { alive = false; };
+      },
+    };
+
   window.AIMESH_SCREENS = [
     // ── 1 主流程 ──
     {
-      id: 'diagnostics',
-      theme: 'white',
-      code: '1_010',
-      name: 'Diagnostics 選單',
-      description: 'Settings › Diagnostics 選單：選 AiMesh Diagnostic 進入這個功能',
-      figmaNode: '548:464',
-      render: () => `
-        ${navbar('Diagnostics', `<button class="navbar-btn navbar-btn-round" data-toast="Settings 頁不在這次範圍" aria-label="返回">${ICON.back}</button>`)}
-        <div class="body">
-          <div class="menu">
-            <button class="menu-row" data-toast="Network Diagnostic 是另一個專案">Network Diagnostic${ICON.rowChevron}</button>
-            <button class="menu-row" data-go="home">AiMesh Diagnostic${ICON.rowChevron}</button>
-            <button class="menu-row" data-toast="Traffic Statistics 尚未加入">Traffic Statistics${ICON.rowChevron}</button>
-          </div>
-        </div>`,
-    },
-    {
       id: 'home',
-      back: 'diagnostics',
       code: '1_020',
       name: 'AiMesh Diagnostic 首頁',
       description: 'AiMesh Diagnostic 首頁：說明這個功能，按 Start 開始測試；右上 ⓘ 看使用提示、時鐘圖示看歷史紀錄',
@@ -314,18 +383,19 @@
       back: 'home',
       code: '1_030',
       name: '測試中',
-      description: '測試中：由路由器往手機一段一段測速，正在測的那段節點會轉圈、連線有流動的點，測完自動進入結果頁',
+      description: '測試中：由路由器往手機一段一段測速，正在測的那段節點會轉圈、連線有流動的點，測完停在本頁，按右下 next 進入結果頁',
       figmaNode: '294:412',
       render: () => `
         ${navbar('AiMesh Diagnostic', '', '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
-        <div class="body">${topology(false)}</div>`,
+        <div class="body">${topology(false)}</div>
+        <button class="demo-next" data-go="result" data-label="next">next</button>`,
       mount: el => {
         let alive = true;
         const nodes = el.querySelectorAll('[data-node]');
         const links = el.querySelectorAll('[data-link]');
         const cards = el.querySelectorAll('[data-card]');
         (async () => {
-          await wait(450);
+          await wait(100);
           for (let i = 0; i < HOPS.length && alive; i++) {
             const h = HOPS[i], card = cards[i];
             const dv = card.querySelector('.down .val'), uv = card.querySelector('.up .val');
@@ -355,26 +425,22 @@
             links[i].classList.remove('active');
             links[i].classList.add(isWeak(h) ? 'weak' : 'good');
             card.classList.remove('running'); card.classList.add('done');
-            await wait(350);
+            await wait(100);
           }
-          await wait(500);
+          await wait(100);
           if (!alive) return;
 
-          // Save the run to Testing History, then show it
+          // Save the run to Testing History; next shows it
           const rec = { id: Date.now(), at: stamp(new Date()), note: 'Home', router: NODES[0].name, down: HOPS[0].down, up: HOPS[0].up, grade: 'Good', weak: HOPS.some(isWeak) };
           HISTORY.unshift(rec);
           STATE.view = rec;
-          // Auto-advance: replace so Back from the result goes home, not into a re-run
-          const layout = window.AIMESH_decision('layout');
-          if (layout) location.replace(layout === 'b' ? '#result-b-suggest' : '#result');
-          else window.AIMESH_decide('layout');
         })();
         return () => { alive = false; };
       },
     },
     {
       id: 'result',
-      back: 'home',
+      back: 'testing',
       theme: 'gray',
       code: '1_040',
       name: '測試結果',
@@ -420,7 +486,7 @@
       name: '單段詳細結果 UDP',
       description: '單段詳細結果（UDP）：下載、上傳、重傳率、掉包率、Jitter',
       figmaNode: '146:2936',
-      render: hopScreen('UDP', 'Detail Result'),
+      render: hopScreen('UDP'),
     },
     {
       id: 'hop-tcp',
@@ -429,7 +495,7 @@
       name: '單段詳細結果 TCP',
       description: '單段詳細結果（TCP）：下載、上傳、Deviation、Latency、重傳率',
       figmaNode: '146:2852',
-      render: hopScreen('TCP', 'Detail Result'),
+      render: hopScreen('TCP'),
     },
     {
       id: 'suggestions',
@@ -648,53 +714,11 @@
       mount: pickDevice('client'),
     },
 
-    // ── 4 結果頁 B 版（Suggestions / Detail Result 分頁）──
-    {
-      id: 'result-b-suggest',
-      back: 'home',
-      theme: 'gray',
-      code: '4_010',
-      name: '測試結果 B 版：Suggestions',
-      description: '測試結果 B 版：Test Again 移到上方卡片，下面分 Suggestions / Detail Result 兩個分頁（目前在 Suggestions）',
-      figmaNode: '568:322',
-      render: () => resultB('suggest'),
-      mount: countAll,
-    },
-    {
-      id: 'result-b-detail',
-      back: 'home',
-      theme: 'gray',
-      code: '4_020',
-      name: '測試結果 B 版：Detail Result',
-      description: '測試結果 B 版：Detail Result 分頁，直接在結果頁看每一段的速度，點卡片看詳細數據',
-      figmaNode: '568:448',
-      render: () => resultB('detail'),
-      mount: el => { countAll(el); rememberHop(el); },
-    },
-    {
-      id: 'hop-b',
-      back: 'result-b-detail',
-      code: '4_030',
-      name: '單段詳細結果 B 版',
-      description: '單段詳細結果 B 版：UDP 與 TCP 的數據放在同一頁',
-      figmaNode: '568:1430',
-      render: hopScreen('ALL', 'AiMesh Diagnostic'),
-    },
   ];
 
   window.AIMESH_DECISIONS = {
-    layout: {
-      index: 0,
-      label: '結果頁',
-      title: '結果頁要看哪一版？',
-      options: [
-        // replace, not push: Back from the result should go home, not re-run the test
-        { label: 'A 版 · Detail Result 是另一頁（1_040）', short: 'A 版', value: 'a', action: () => location.replace('#result') },
-        { label: 'B 版 · Suggestions / Detail Result 分頁（4_010）', short: 'B 版', value: 'b', action: () => location.replace('#result-b-suggest') },
-      ],
-    },
     protocol: {
-      index: 1,
+      index: 0,
       label: 'Protocol',
       title: '這次測試用哪個通訊協定？',
       options: [
@@ -703,7 +727,7 @@
       ],
     },
     history: {
-      index: 2,
+      index: 1,
       label: 'History',
       title: 'Testing History 有沒有資料？',
       options: [

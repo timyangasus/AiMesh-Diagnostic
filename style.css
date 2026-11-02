@@ -371,10 +371,9 @@ button {
 .navbar-btn-blue { color: var(--blue); }
 .navbar-text { color: var(--blue); font-weight: 600; font-size: 16px; }
 
-/* Round floating buttons from the newer iOS frames (Diagnostics, Feedback, Location) */
+/* Round floating buttons from the newer iOS frames (Feedback, Location) */
 .navbar-btn-round { width: 40px; height: 40px; border-radius: 50%; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .12); color: #4a90e2; }
 .navbar-pill { height: 40px; padding: 0 14px; border-radius: 20px; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .12); color: #4a90e2; font-size: 17px; }
-.screen-diagnostics .navbar-title,
 .screen-feedback .navbar-title,
 .screen-history-note .navbar-title { color: #4a90e2; font-weight: 600; font-size: 15px; }
 
@@ -495,6 +494,19 @@ button {
 .card.clickable { background: var(--card-on); border-color: var(--blue); cursor: pointer; }
 .card.clickable:active { filter: brightness(.96); }
 
+/* Demo-only "next" on 1_030: the test no longer auto-advances, so pages can be discussed one by one */
+.demo-next {
+  position: absolute;
+  right: 12px;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 6px);
+  border: 0;
+  background: none;
+  padding: 4px;
+  font-size: 8pt;
+  color: #9e9e9e;
+  cursor: pointer;
+}
+
 /* ── 1_030 測試結果 ── */
 .summary { margin: 12px 18px 0; background: #fff; border-radius: 10px; padding: 14px 16px 16px; text-align: center; }
 .grade { font-size: 26px; font-weight: 700; color: var(--green); }
@@ -548,7 +560,7 @@ button {
 .kv li b { color: var(--blue); font-weight: 600; }
 .note { font-size: 10.5px; line-height: 1.4; padding: 14px 18px; }
 
-/* ── 1_010 Diagnostics / 2_040 Location 選單 ── */
+/* ── 2_040 Location 選單 ── */
 .menu { border-top: 1px solid var(--line); }
 .menu-row { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 56px; padding: 0 16px 0 18px; border-bottom: 1px solid var(--line); font-size: 16px; color: #222; }
 .menu-row:active { background: #f2f2f2; }
@@ -605,7 +617,8 @@ button {
 .h-card { position: relative; background: #fff; border-radius: 10px; padding: 12px 16px 10px; cursor: pointer; }
 .h-card:active { background: #fafafa; }
 .h-more { position: absolute; right: 10px; top: 8px; color: #444; }
-.h-top { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 2px 4px; border-bottom: 1px solid #bdbdbd; }
+/* Right padding keeps the grade clear of the ••• button, as in the design */
+.h-top { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 26px 4px 2px; border-bottom: 1px solid #bdbdbd; }
 .h-at { font-size: 14px; color: #555; }
 .h-note { font-size: 14px; color: #333; margin-top: 2px; }
 .h-grade { font-size: 19px; font-weight: 500; margin-bottom: 2px; }
@@ -656,14 +669,3 @@ button {
 .sel-ip { display: block; font-size: 12px; color: #888; margin-top: 1px; }
 .sel-check { color: var(--blue); display: flex; }
 
-/* ── 4_010 / 4_020 結果頁 B 版 ── */
-.summary-b { text-align: center; }
-.summary-b-top { display: flex; justify-content: space-between; align-items: baseline; padding: 0 6px; }
-.summary-b-top .grade { font-size: 26px; }
-.summary-b-top .stamp { margin: 0; }
-.btn-outline { display: block; margin: 12px auto 0; width: 150px; height: 30px; border: 1.5px solid #3a8ee6; border-radius: 15px; color: #3a8ee6; font-size: 14px; font-weight: 600; text-align: center; }
-.tabs { display: flex; margin: 22px 18px 0; }
-.tabs button { flex: 1; height: 40px; text-align: center; font-size: 16px; font-weight: 600; color: #c4c4c4; border-bottom: 4px solid transparent; }
-.tabs button.on { color: var(--blue); border-bottom-color: var(--blue); }
-.screen-result-b-suggest .items { margin-top: 12px; }
-.tab-panel { background: #fff; margin-top: 8px; }

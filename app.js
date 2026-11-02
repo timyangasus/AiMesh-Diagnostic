@@ -144,9 +144,8 @@
 
   document.getElementById('flow-decision-close').addEventListener('click', closeDecision);
 
-  // Screens can open a decision, read one already picked, or show a toast themselves
+  // Screens can open a decision or show a toast themselves
   window.AIMESH_decide = openDecision;
-  window.AIMESH_decision = name => decisions.find(d => d && d.name === name)?.value;
   window.AIMESH_toast = toast;
 
   // ── Screens ──

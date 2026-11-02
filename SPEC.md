@@ -2,7 +2,7 @@
 
 Figma：[AiMesh Diagnostic](https://www.figma.com/design/DdMLHjlc77yfzpCWUUXFev/AiMesh%E2%80%A8Diagnostic?node-id=0-1)（只看 Page 1，backup 不用）
 架構參考 [QIS](https://timyangasus.github.io/QIS/QIS_index.html)：flow 形式的原型，上方 demo bar 顯示頁碼與說明。
-流程起點是 Settings › Diagnostics 選單（548:464），它前面的 Settings 頁不做。
+流程起點是 AiMesh Diagnostic 首頁（1_020）；Settings 與 Diagnostics 選單不做。
 
 ## 畫布
 
@@ -18,15 +18,14 @@ Figma：[AiMesh Diagnostic](https://www.figma.com/design/DdMLHjlc77yfzpCWUUXFev/
 
 ## 頁碼表
 
-頁碼開頭：1 主流程、2 Testing History、3 Advanced Test、4 結果頁 B 版。
+頁碼開頭：1 主流程、2 Testing History、3 Advanced Test。
 
 | 頁碼 | id | 頁面 | 從哪裡進來 | Figma |
 |---|---|---|---|---|
-| 1_010 | `diagnostics` | Diagnostics 選單 | 起點 | 548:464 |
-| 1_020 | `home` | AiMesh Diagnostic 首頁 | 1_010 AiMesh Diagnostic | 250:507 |
+| 1_020 | `home` | AiMesh Diagnostic 首頁 | 起點 | 250:507 |
 | 1_021 | `home-tip` | 使用提示（底部面板） | 首頁 ⓘ | 352:2421 |
 | 1_030 | `testing` | 測試中（動畫） | Start / Test Again / 3_010 Start | 294:412 / 294:413 / 294:410 |
-| 1_040 | `result` | 測試結果 A 版 | 測完（選 A 版） | 145:2382 |
+| 1_040 | `result` | 測試結果 | 1_030 右下 next | 145:2382 |
 | 1_050 | `detail` | Detail Result 拓撲 | 1_040 Detail Result | 294:409 |
 | 1_060 | `hop-udp` | 單段詳細結果 UDP | 1_050 點卡片 | 146:2936 |
 | 1_070 | `hop-tcp` | 單段詳細結果 TCP | 1_050 點卡片 | 146:2852 |
@@ -40,24 +39,20 @@ Figma：[AiMesh Diagnostic](https://www.figma.com/design/DdMLHjlc77yfzpCWUUXFev/
 | 3_010 | `advanced` | Advanced Test | 首頁 Advanced Test | 146:3061 |
 | 3_020 | `select-server` | Select Server | 3_010 Server | 146:3207 |
 | 3_030 | `select-client` | Select Client | 3_010 Client | 146:3334 |
-| 4_010 | `result-b-suggest` | 測試結果 B 版：Suggestions 分頁 | 測完（選 B 版） | 568:322 |
-| 4_020 | `result-b-detail` | 測試結果 B 版：Detail Result 分頁 | 4_010 分頁 | 568:448 / 568:1325 |
-| 4_030 | `hop-b` | 單段詳細結果 B 版（UDP + TCP 同一頁） | 4_020 點卡片 | 568:1430 |
 
 ## 流程判斷
 
 | 判斷 | 出現位置 | 選項 |
 |---|---|---|
-| 結果頁 | 1_030 測完時（選過之後就不再問） | A 版 → 1_040、B 版 → 4_010 |
 | Protocol | 1_050 點任一段卡片 | UDP → 1_060、TCP → 1_070 |
 | History | 點右上時鐘圖示 | 有資料 → 2_020、沒有資料 → 2_010 |
 
 ## 測試中動畫（1_030）
 
-- 由 ZenWiFi BT8 往 Phone 一段一段測，每段約 2.6 秒。
+- 由 ZenWiFi BT8 往 Phone 一段一段測，每段約 0.5 秒（demo 用，整段約 2 秒）。
 - 正在測的那段：兩端節點有綠色旋轉光環、連線是往下流動的藍點、數字藍／紫色跳動往上數。
 - 測完：數字變黑色，連線依下載速度變色（≥ 50 Mbps 綠色、< 50 Mbps 橘色）。
-- 三段都測完會存一筆到 Testing History，然後進結果頁（取代歷史紀錄，所以在結果頁按返回會回首頁）。
+- 三段都測完會存一筆到 Testing History，停在本頁（方便分頁討論）；按右下灰色 next（8pt）進結果頁；在結果頁按返回會回到 1_030。
 
 ## 互動細節
 
@@ -68,6 +63,5 @@ Figma：[AiMesh Diagnostic](https://www.figma.com/design/DdMLHjlc77yfzpCWUUXFev/
 
 ## 待辦
 
-- Diagnostics 選單在 Figma 是新版 App 的截圖（tab bar 不同），目前沿用其他頁的 tab bar。
 - 插圖與 tab bar 目前是 Figma 匯出的 1 倍圖，之後換成高解析度圖或 SVG。
 - Advanced Test 選的 Server / Client / Protocol 目前不會改變測試畫面的內容。
