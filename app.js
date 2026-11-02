@@ -57,7 +57,8 @@
   }
 
   function renderPageList(currentId) {
-    const sorted = [...window.AIMESH_SCREENS].sort((a, b) => {
+    // Screens marked hidden stay reachable by URL but aren't listed
+    const sorted = window.AIMESH_SCREENS.filter(s => !s.hidden).sort((a, b) => {
       const [aFlow, aSeq] = a.code.split('_').map(Number);
       const [bFlow, bSeq] = b.code.split('_').map(Number);
       return aFlow - bFlow || aSeq - bSeq;
