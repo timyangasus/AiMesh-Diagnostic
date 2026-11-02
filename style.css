@@ -586,10 +586,28 @@ button.skip-i { padding: 0; border: 0; cursor: pointer; }
 .skip-sheet h2 { padding: 0 20px; }
 .skip-sheet .inline-link { font-size: 13px; font-weight: 600; }
 
-/* 1_032: the branch waits hidden until B10 drops out of the line */
-.screen-testing-skip-inline .link-seg { transition: background .4s, height .45s; }
-.screen-testing-skip-inline .skip-branch { opacity: 0; transition: opacity .4s .15s; }
-.screen-testing-skip-inline .link-seg.branch-in .skip-branch { opacity: 1; }
+/* Two or more skipped nodes beside one link: stacked, and the link grows to fit */
+.link-seg:has(.skip-group) { height: 172px; }
+.skip-group { position: absolute; left: 3px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 36px; }
+.skip-group .skip-branch { position: static; transform: none; }
+
+/* Gray node rows in a sheet (several untestable nodes) */
+.skip-list { margin: 0 0 16px; padding: 0; list-style: none; border-top: 1px solid #eee; }
+.skip-list li { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid #eee; }
+.skip-list li > span:nth-child(2) { flex: 1; line-height: 1.3; }
+.skip-list b { display: block; font-size: 14px; color: var(--text); }
+.skip-list small { display: block; font-size: 12px; color: #8a8a8a; }
+.skip-list .skip-badge { margin-top: 0; }
+.skip-sheet-btn { display: block; margin: 20px auto 0; }
+.skip-sheet-link { display: block; margin: 16px auto 0; }
+
+/* 1_032 / 1_034: branches wait hidden until their node drops out of the line; the link grows each time */
+.skip-inline .link-seg { transition: background .4s, height .45s; }
+.skip-inline .skip-branch { display: none; }
+.skip-inline .skip-branch.shown { display: flex; animation: fade-in .4s .1s backwards; }
+.skip-inline .link-seg:has(.skip-group) { height: 36px; }
+.skip-inline .link-seg.has-branch:has(.skip-group) { height: 72px; }
+.skip-inline .link-seg.has-two:has(.skip-group) { height: 172px; }
 .card.unsupported { border-style: dashed; border-color: #c8c8c8; background: #fafafa; }
 .card.unsupported .node .face { border-style: dashed; border-color: #b5b5b5; color: #ababab; background: #f6f6f6; }
 
@@ -610,7 +628,7 @@ button.skip-i { padding: 0; border: 0; cursor: pointer; }
 .sp.up { color: var(--purple); }
 .stamp { font-size: 12px; color: var(--text-sub); margin-top: 10px; }
 
-.items { margin-top: 32px; display: flex; flex-direction: column; gap: 12px; }
+.items { margin-top: 32px; display: flex; flex-direction: column; gap: 36px; }
 
 .item {
   background: #fff;
