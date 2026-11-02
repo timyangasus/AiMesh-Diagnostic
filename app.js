@@ -202,6 +202,9 @@
     history.replaceState({ aimesh: depth }, '');
   }
 
+  // Tab bar Home goes to the AiMesh Diagnostic home page
+  document.getElementById('tabbar-home').addEventListener('click', () => go(firstId, 'Home'));
+
   window.addEventListener('hashchange', render);
   render();
 })();

@@ -43,6 +43,10 @@
     { down: 32, up: 18, udp: { retrans: '0.45%', loss: '0%', jitter: '0.2ms' }, tcp: { deviation: '2 ms', latency: '12 ms', retrans: '0.45%' } },
     { down: 24, up: 16, udp: { retrans: '0.82%', loss: '0.1%', jitter: '0.5ms' }, tcp: { deviation: '4 ms', latency: '18 ms', retrans: '0.82%' } },
   ];
+  // 1_031: B10 (Bedroom) can't be tested, so BT10 → Phone is measured directly (not via B10)
+  const SKIPPED = NODES[2];
+  const SKIP_PATH = { nodes: [NODES[0], NODES[1], NODES[3]], hops: [HOPS[0], { down: 86.4, up: 41.2, udp: { retrans: '0.38%', loss: '0%', jitter: '0.2ms' }, tcp: { deviation: '2 ms', latency: '9 ms', retrans: '0.38%' } }] };
+  const FULL_PATH = { nodes: NODES, hops: HOPS };
   const WEAK_BELOW = 50; // Mbps download; below this a link is drawn orange
   const HOP_MS = 500;    // how long each hop's test runs
 
@@ -76,6 +80,7 @@
 
   const STATE = {
     hop: 0,
+    path: FULL_PATH,    // nodes/hops the single-hop pages read from
     view: HISTORY[0],   // record shown on the result page
     picked: null,       // record the ••• menu was opened on
     server: 0,
@@ -113,13 +118,15 @@
 
   // Vertical topology: node, then for each hop a link, a speed card and the next node.
   // done: finished results (cards tappable); tapTo: where a card goes (decision or page)
-  function topology(done, tapTo) {
-    let html = `${nodeEl(NODES[0])}<div class="node-label">${NODES[0].name}</div>`;
-    HOPS.forEach((h, i) => {
-      const n = NODES[i + 1];
-      const linkCls = done ? (isWeak(h) ? ' weak' : ' good') : '';
+  // path: nodes/hops to draw; beside: { hop index: html shown next to that hop's link }
+  function topology(done, tapTo, path = FULL_PATH, beside = {}) {
+    const { nodes, hops } = path;
+    let html = `${nodeEl(nodes[0])}<div class="node-label">${nodes[0].name}</div>`;
+    hops.forEach((h, i) => {
+      const n = nodes[i + 1];
+      const linkCls = (done ? (isWeak(h) ? ' weak' : ' good') : '') + (beside[i] ? ' has-branch' : '');
       html += `
-        <div class="link-seg${linkCls}" data-link><span class="dots"><i></i><i></i><i></i><i></i><i></i></span></div>
+        <div class="link-seg${linkCls}" data-link><span class="dots"><i></i><i></i><i></i><i></i><i></i></span>${beside[i] || ''}</div>
         <div class="card${done ? ' clickable done' : ''}" data-card data-hop="${i}"${done ? ` ${tapTo}` : ''}>
           <div class="col down"><div class="lbl">Download</div><div class="val">${done ? fmt(h.down) : '---'}</div><div class="unit">Mbps</div></div>
           <div class="divider"></div>
@@ -131,7 +138,155 @@
     });
     return `<div class="topology">${html}</div>`;
   }
-  const rememberHop = el => onTap(el, '[data-card]', c => { STATE.hop = +c.dataset.hop; });
+  // Gray dashed node off the main line: its firmware/model can't be tested, so it's not on the measured path
+  // explain: the i opens the not-tested sheet (Detail Result)
+  const skippedBranch = (n, explain) => {
+    const tag = explain ? 'button data-explain' : 'span';
+    return `
+    <div class="skip-branch">
+      <span class="skip-line"></span>
+      <div class="node skipped"><span class="face">${ICON[n.icon]}</span><${tag} class="skip-i" aria-label="Not tested">i</${tag.split(' ')[0]}></div>
+      <div class="skip-text"><b>${n.name}</b><small>${n.place}</small><span class="skip-badge">Not tested</span></div>
+    </div>`;
+  };
+  // Result page row (framed, first in the list) and Detail Result bar for the skipped node
+  const skippedItem = (n, to) => `<button class="item item-tap item-skip" data-go="${to}"><span class="skip-i">i</span><div><h3>3 of 4 nodes tested</h3><p>${n.name} (${n.place}) was not tested.</p><span class="item-more">See details</span></div>${ICON.rowChevron}</button>`;
+  const skippedBar = n => `<button class="skip-bar" data-explain><span class="skip-i">i</span><span class="skip-bar-text"><b>1 device not tested</b><small>${n.name} doesn't support this test. Tap to see details.</small></span>${ICON.rowChevron}</button>`;
+
+  // Test one hop: from/to nodes spin, the link drips, the card counts up. live() false stops it.
+  async function testHop({ from, to, link, card, h, last }, live) {
+    const dv = card.querySelector('.down .val'), uv = card.querySelector('.up .val');
+    from.classList.add('pulse'); to.classList.add('pulse');
+    link.classList.add('active');
+    card.classList.add('running');
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Count up with a little jitter, like a live throughput reading
+    const t0 = performance.now();
+    await new Promise(done => {
+      (function step(now) {
+        if (!live()) return done();
+        const p = Math.min(1, (now - t0) / HOP_MS);
+        const ease = 1 - Math.pow(1 - p, 3);
+        const noise = p < 1 ? (Math.random() - .5) * 0.12 * (1 - p) : 0;
+        dv.textContent = fmt(+(h.down * (ease + noise)).toFixed(h.down % 1 ? 1 : 0));
+        uv.textContent = fmt(+(h.up * Math.max(0, ease - .08 + noise)).toFixed(h.up % 1 ? 1 : 0));
+        if (p < 1) requestAnimationFrame(step);
+        else { dv.textContent = fmt(h.down); uv.textContent = fmt(h.up); done(); }
+      })(t0);
+    });
+    if (!live()) return;
+
+    from.classList.remove('pulse');
+    if (last) to.classList.remove('pulse');
+    link.classList.remove('active');
+    link.classList.add(isWeak(h) ? 'weak' : 'good');
+    card.classList.remove('running'); card.classList.add('done');
+    await wait(100);
+  }
+
+  // Run the test hop by hop on a rendered topology; returns a cleanup that stops it
+  function runTest(el, hops, onDone) {
+    let alive = true;
+    const live = () => alive;
+    const nodes = el.querySelectorAll('[data-node]');
+    const links = el.querySelectorAll('[data-link]');
+    const cards = el.querySelectorAll('[data-card]');
+    (async () => {
+      await wait(100);
+      for (let i = 0; i < hops.length && alive; i++) {
+        await testHop({ from: nodes[i], to: nodes[i + 1], link: links[i], card: cards[i], h: hops[i], last: i === hops.length - 1 }, live);
+      }
+      await wait(100);
+      if (alive) onDone();
+    })();
+    return () => { alive = false; };
+  }
+
+  // Shrink an element away (height, margins, border, opacity), for the node that drops out of the line
+  function collapse(n, ms) {
+    n.style.height = `${n.offsetHeight}px`;
+    n.style.overflow = 'hidden';
+    void n.offsetHeight;
+    n.style.transition = `height ${ms}ms, margin ${ms}ms, border-width ${ms}ms, opacity ${ms * .6}ms`;
+    Object.assign(n.style, { height: '0px', marginTop: '0px', marginBottom: '0px', borderWidth: '0px', opacity: '0' });
+  }
+
+  // 1_032: same unsupported node, drawn another way — start with every node in line; at B10 it grays
+  // out, leaves the line and becomes the gray branch beside BT10 → Phone, then that hop is tested.
+  function runSkipInLine(el, onDone) {
+    let alive = true;
+    const live = () => alive;
+    const nodes = el.querySelectorAll('[data-node]');
+    const links = el.querySelectorAll('[data-link]');
+    const cards = el.querySelectorAll('[data-card]');
+    const [h0, h1] = SKIP_PATH.hops;
+    links[1].classList.remove('has-branch'); // normal height until B10 drops out
+    (async () => {
+      await wait(100);
+      await testHop({ from: nodes[0], to: nodes[1], link: links[0], card: cards[0], h: h0 }, live);
+      if (!alive) return;
+
+      // Reach B10: it can't be tested, so it grays out
+      nodes[1].classList.add('pulse'); nodes[2].classList.add('pulse');
+      links[1].classList.add('active');
+      cards[1].classList.add('running');
+      cards[1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      await wait(700);
+      if (!alive) return;
+      nodes[1].classList.remove('pulse'); nodes[2].classList.remove('pulse');
+      links[1].classList.remove('active');
+      cards[1].classList.remove('running'); cards[1].classList.add('unsupported');
+      await wait(450);
+      if (!alive) return;
+
+      // B10 leaves the line; its branch fades in beside the now-joined BT10 → Phone link
+      [cards[1], cards[1].nextElementSibling, links[2]].forEach(n => collapse(n, 450));
+      links[1].classList.add('has-branch', 'branch-in');
+      await wait(550);
+      if (!alive) return;
+
+      await testHop({ from: nodes[1], to: nodes[3], link: links[1], card: cards[2], h: h1, last: true }, live);
+      await wait(100);
+      if (alive) onDone();
+    })();
+    return () => { alive = false; };
+  }
+
+  // Demo-only dots under the testing page: switch scenario in place (replace, so Back isn't stacked)
+  // Each group: [screen id, label]. Testing has two ways of drawing the same unsupported node.
+  const TEST_IDS = [['testing', '全部支援'], ['testing-skip', '不支援：一開始就排除'], ['testing-skip-inline', '不支援：測到時才退出']];
+  const RESULT_IDS = [['result', '全部支援'], ['result-skip', '有一台不支援']];
+  const DETAIL_IDS = [['detail', '全部支援'], ['detail-skip', '有一台不支援']];
+  const scenarioDots = (group, current) => `
+    <div class="demo-dots">${group.map(([id, label]) =>
+      `<button class="${id === current ? 'on' : ''}" data-scenario="${id}" title="${label}" aria-label="${label}"></button>`).join('')}</div>`;
+  const mountDots = el => onTap(el, '[data-scenario]', b => location.replace(`#${b.dataset.scenario}`));
+
+  const skipSheet = n => `
+    <div class="overlay" data-sheet hidden></div>
+    <div class="sheet skip-sheet" data-sheet hidden>
+      <button class="sheet-close" data-close-sheet aria-label="關閉">${ICON.closeCircle}</button>
+      <h2>${n.name} (${n.place}) was not tested</h2>
+      <p>Its firmware or device model doesn't support this test, so the results skip it. This doesn't mean your network has a problem.</p>
+      <p>Update its firmware, then test again to include it.</p>
+      <button class="inline-link" data-toast="Firmware 更新 – 尚未加入">Check for firmware update</button>
+    </div>`;
+  function mountSheet(el) {
+    const show = on => el.querySelectorAll('[data-sheet]').forEach(n => { n.hidden = !on; });
+    onTap(el, '[data-explain]', () => show(true));
+    onTap(el, '[data-close-sheet], .overlay[data-sheet]', () => show(false));
+  }
+
+  // Save a finished run to Testing History; the result page (via next) shows it
+  function saveRun(hops) {
+    const rec = { id: Date.now(), at: stamp(new Date()), note: 'Home', router: NODES[0].name, down: hops[0].down, up: hops[0].up, grade: 'Good', weak: hops.some(isWeak) };
+    HISTORY.unshift(rec);
+    STATE.view = rec;
+  }
+
+  // Remember which hop (and on which path) was tapped, for the single-hop pages
+  const rememberHop = path => el => onTap(el, '[data-card]', c => { STATE.hop = +c.dataset.hop; STATE.path = path; });
 
   function countUp(el, to, ms = 900) {
     const t0 = performance.now();
@@ -154,9 +309,10 @@
   }
 
   // Node Status + (when weak) the Wi-Fi tip, which opens Suggestions
-  function resultItems(r) {
+  function resultItems(r, extra = '') {
     return `
       <div class="items">
+        ${extra}
         <div class="item"><div><h3>Node Status</h3><p>All nodes are online and stable with no detected drops.</p></div>${ICON.ok}</div>
         ${r.weak ? `<button class="item item-tap" data-go="suggestions" style="animation-delay:.12s"><div><h3>Wifi signal weak</h3><p>Your phone is connected to a farther node.<br>Consider moving closer for optimal speed.</p></div>${ICON.warn}</button>` : ''}
       </div>`;
@@ -164,7 +320,7 @@
 
   // Detail rows per protocol, as in the UDP / TCP frames
   function hopRows(proto) {
-    const h = HOPS[STATE.hop];
+    const h = STATE.path.hops[STATE.hop];
     const rows = [['Download Speed', `${Math.round(h.down)} Mbps`], ['Upload Speed', `${Math.round(h.up)} Mbps`], ['Protocol', proto]];
     if (proto === 'UDP') rows.push(['Retransmission', h.udp.retrans], ['Pack Lost', h.udp.loss], ['Jitter', h.udp.jitter]);
     else rows.push(['Deviation', h.tcp.deviation], ['Latency', h.tcp.latency], ['Retransmission', h.tcp.retrans]);
@@ -173,7 +329,7 @@
 
   function hopScreen(proto) {
     return () => {
-      const a = NODES[STATE.hop], b = NODES[STATE.hop + 1];
+      const a = STATE.path.nodes[STATE.hop], b = STATE.path.nodes[STATE.hop + 1];
       return `
         ${navbar('Detail Result', backBtn, `<button class="navbar-btn navbar-btn-blue" data-toast="Info – 尚未加入" aria-label="說明">${ICON.info}</button>`)}
         <div class="body">
@@ -191,6 +347,28 @@
     };
   }
 
+  // Result page, shared by 1_040 and 1_041 (a node not tested)
+  function resultPage({ id, again, detail, extra = '' }) {
+    const r = STATE.view;
+    return `
+      ${navbar('AiMesh Diagnostic', backBtn, historyBtn)}
+      <div class="body">
+        <div class="summary">
+          <div class="grade ${r.grade === 'Good' ? '' : 'notice'}">${r.grade}</div>
+          <div class="grade-desc">Your network is healthy and performing well.</div>
+          <div class="pair">${r.router} <span class="arrows">↔</span> Phone</div>
+          ${speeds(r, true)}
+          <div class="stamp">${r.at}</div>
+        </div>
+        ${resultItems(r, extra)}
+      </div>
+      <div class="actions">
+        <button class="btn-primary" data-go="${detail}">Detail Result</button>
+        <button class="text-link" data-go="${again}">Test Again</button>
+      </div>
+      ${scenarioDots(RESULT_IDS, id)}`;
+  }
+
   // The home page itself, shared by 1_020 and its tip sheet 1_021
   function homeContent() {
     return `
@@ -200,7 +378,7 @@
         <p class="intro">Test real-time connection quality to diagnose and optimize your network experience.</p>
       </div>
       <div class="actions">
-        <button class="btn-primary" data-go="testing">Start</button>
+        <button class="btn-primary" data-decide="nodes">Start</button>
         <button class="text-link" data-go="advanced">Advanced Test</button>
       </div>`;
   }
@@ -240,117 +418,6 @@
   }
   const pickDevice = key => el => onTap(el, '[data-pick]', n => { STATE[key] = +n.dataset.pick; });
 
-  // Hidden for now: testing variant where a node's firmware can't be tested (not in the flow)
-  const TESTING_SKIP = {
-      id: 'testing-skip',
-      back: 'home',
-      code: '1_031',
-      name: '測試中',
-      description: '測試中：保留上下測試主線；右側顯示廚房不支援提示，主線測 Home ↔ Bedroom。預覽停留本頁。',
-      figmaNode: '294:412',
-      render: () => `
-        ${navbar('AiMesh Diagnostic', '', '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
-        <style>
-          .screen-testing .topology{position:relative;margin:0 18px;padding:24px 0 28px}
-          .screen-testing .node-label{line-height:20px;margin-top:12px}
-          .screen-testing .node-place{display:block;font-size:10px;font-weight:400;color:#75808a;line-height:15px}
-          .screen-testing .test-link-wrap{position:relative;width:100%;height:156px;display:flex;justify-content:center}
-          .screen-testing .test-link-wrap>.link-seg{height:128px;margin:14px 0}
-          .screen-testing .skip-note{position:absolute;left:calc(50% + 29px);top:17px;width:140px;padding:12px 12px;background:#fff8ed;border:1px solid #e5b66d;border-radius:9px;color:#38424a}
-          .screen-testing .skip-note>.node{position:absolute;left:-17px;top:17px;width:26px;height:26px}
-          .screen-testing .skip-note .face{border-color:#d4a34e;color:#a87925}
-          .screen-testing .skip-note strong{display:block;font-size:12px;margin-left:4px}
-          .screen-testing .skip-note small{display:block;font-size:10px;color:#7b6a4d;margin:4px 0 9px 4px}
-          .screen-testing .skip-note p{font-size:11px;line-height:1.45;margin:0}
-          .screen-testing .skip-badge{display:inline-block;font-size:9px;color:#8c6522;background:#f9e9c9;border-radius:4px;padding:2px 5px;margin-bottom:5px}
-          .screen-testing .measured-pair{position:absolute;top:10px;left:0;width:100%;text-align:center;font-size:10px;color:#6c7b88}
-          .screen-testing .measured-card{height:102px;padding-top:23px}
-          .screen-testing .card+.node-label{margin-top:30px}
-          .screen-testing .topology>.link-seg{height:42px;margin:14px 0 12px}
-          .screen-testing .testing-footer{flex:none;padding:12px 20px 14px;border-top:1px solid #e9edf1;background:#fff;box-shadow:0 -5px 16px #18384d05}
-          .screen-testing .test-notice{display:flex;gap:10px;align-items:flex-start;background:#fff7e8;border:1px solid #ead2a6;border-radius:9px;padding:12px;color:#725222}
-          .screen-testing .test-notice svg{flex:none;width:19px;height:19px;margin-top:1px}
-          .screen-testing .test-notice strong{display:block;font-size:12px;line-height:17px;margin-bottom:3px}
-          .screen-testing .test-notice p{font-size:11px;line-height:16px;margin:0;color:#776850}
-          .screen-testing .test-footer-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px}
-          .screen-testing .test-footer-row .test-caption{margin:0;text-align:left;font-size:11px}
-          .screen-testing .test-caption{font-size:11px;line-height:1.5;color:#68717a;margin:17px 22px 0;text-align:center}
-          .screen-testing .test-replay{border:0;background:none;color:var(--blue);font-size:11px;margin:0;padding:5px 0;white-space:nowrap;cursor:pointer}
-        </style>
-        <div class="body">
-          <div class="topology">
-            ${nodeEl(NODES[0])}
-            <div class="node-label">ZenWiFi BT8<span class="node-place">Home</span></div>
-            <div class="test-link-wrap">
-              <div class="link-seg" data-link><span class="dots"><i></i><i></i><i></i><i></i><i></i></span></div>
-              <aside class="skip-note" aria-label="Kitchen device skipped">
-                <div class="node"><span class="face">${ICON.kitchen}</span></div>
-                <strong>ZenWiFi BT10</strong><small>Kitchen</small>
-                <span class="skip-badge">Not tested</span>
-                <p>Firmware does not support testing.</p>
-              </aside>
-            </div>
-            ${[
-              {pair:'Home ↔ Bedroom',name:'ZenWiFi BT10',place:'Bedroom',icon:'bedroom'},
-              {pair:'Bedroom ↔ Phone',name:'Phone',place:'',icon:'phone'},
-            ].map((n,i)=>`${i ? '<div class="link-seg" data-link><span class="dots"><i></i><i></i><i></i><i></i><i></i></span></div>' : ''}
-              <div class="card measured-card" data-card>
-                <div class="measured-pair">${n.pair}</div>
-                <div class="col down"><div class="lbl">Download</div><div class="val">---</div><div class="unit">Mbps</div></div>
-                <div class="divider"></div>
-                <div class="col up"><div class="lbl">Upload</div><div class="val">---</div><div class="unit">Mbps</div></div>
-                ${nodeEl(n)}
-              </div>
-              <div class="node-label${i ? ' end' : ''}">${n.name}${n.place ? `<span class="node-place">${n.place}</span>` : ''}</div>`).join('')}
-          </div>
-        </div>
-        <div class="testing-footer">
-          <aside class="test-notice" aria-label="Test coverage notice">
-            ${ICON.info}
-            <div><strong>Kitchen is not included in this test</strong><p>Its firmware is not supported.<br>This does not mean the network is faulty.</p></div>
-          </aside>
-          <div class="test-footer-row">
-            <p class="test-caption" data-testing-status aria-live="polite">Testing Home ↔ Bedroom…</p>
-            <button class="test-replay" data-go="testing">Restart test</button>
-          </div>
-        </div>`,
-      mount: el => {
-        let alive = true;
-        const cards = el.querySelectorAll('[data-card]');
-        const nodes = el.querySelectorAll('[data-node]');
-        const links = el.querySelectorAll('[data-link]');
-        (async () => {
-          for (let i = 0; i < 2 && alive; i++) {
-            const card = cards[i], h = HOPS[i === 0 ? 0 : 2];
-            const from = nodes[i], to = nodes[i+1];
-            from.classList.add('pulse'); to.classList.add('pulse');
-            links[i].classList.add('active');
-            card.classList.add('running');
-            if (i > 0) card.nextElementSibling.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            el.querySelector('[data-testing-status]').textContent = i === 0 ? 'Testing Home ↔ Bedroom…' : 'Testing Bedroom ↔ Phone…';
-            const start = performance.now();
-            await new Promise(done => {
-              function step(now) {
-                if (!alive) return done();
-                const fraction = Math.min(1, (now-start)/4500);
-                card.querySelector('.down .val').textContent = (h.down*fraction).toFixed(1);
-                card.querySelector('.up .val').textContent = (h.up*fraction).toFixed(1);
-                if(fraction < 1) requestAnimationFrame(step); else done();
-              }
-              requestAnimationFrame(step);
-            });
-            if(!alive) return;
-            from.classList.remove('pulse'); to.classList.remove('pulse');
-            card.classList.remove('running'); card.classList.add('done');
-            links[i].classList.remove('active'); links[i].classList.add(isWeak(h) ? 'weak' : 'good');
-            await wait(350);
-          }
-          if(alive) el.querySelector('[data-testing-status]').textContent = '2 connections tested · Kitchen not tested';
-        })();
-        return () => { alive = false; };
-      },
-    };
-
   window.AIMESH_SCREENS = [
     // ── 1 主流程 ──
     {
@@ -386,57 +453,37 @@
       description: '測試中：由路由器往手機一段一段測速，正在測的那段節點會轉圈、連線有流動的點，測完停在本頁，按右下 next 進入結果頁',
       figmaNode: '294:412',
       render: () => `
-        ${navbar('AiMesh Diagnostic', '', '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(false)}</div>
+        ${scenarioDots(TEST_IDS, 'testing')}
         <button class="demo-next" data-go="result" data-label="next">next</button>`,
-      mount: el => {
-        let alive = true;
-        const nodes = el.querySelectorAll('[data-node]');
-        const links = el.querySelectorAll('[data-link]');
-        const cards = el.querySelectorAll('[data-card]');
-        (async () => {
-          await wait(100);
-          for (let i = 0; i < HOPS.length && alive; i++) {
-            const h = HOPS[i], card = cards[i];
-            const dv = card.querySelector('.down .val'), uv = card.querySelector('.up .val');
-            nodes[i].classList.add('pulse'); nodes[i + 1].classList.add('pulse');
-            links[i].classList.add('active');
-            card.classList.add('running');
-            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            // Count up with a little jitter, like a live throughput reading
-            const t0 = performance.now();
-            await new Promise(done => {
-              (function step(now) {
-                if (!alive) return done();
-                const p = Math.min(1, (now - t0) / HOP_MS);
-                const ease = 1 - Math.pow(1 - p, 3);
-                const noise = p < 1 ? (Math.random() - .5) * 0.12 * (1 - p) : 0;
-                dv.textContent = fmt(+(h.down * (ease + noise)).toFixed(h.down % 1 ? 1 : 0));
-                uv.textContent = fmt(+(h.up * Math.max(0, ease - .08 + noise)).toFixed(h.up % 1 ? 1 : 0));
-                if (p < 1) requestAnimationFrame(step);
-                else { dv.textContent = fmt(h.down); uv.textContent = fmt(h.up); done(); }
-              })(t0);
-            });
-            if (!alive) return;
-
-            nodes[i].classList.remove('pulse');
-            if (i === HOPS.length - 1) nodes[i + 1].classList.remove('pulse');
-            links[i].classList.remove('active');
-            links[i].classList.add(isWeak(h) ? 'weak' : 'good');
-            card.classList.remove('running'); card.classList.add('done');
-            await wait(100);
-          }
-          await wait(100);
-          if (!alive) return;
-
-          // Save the run to Testing History; next shows it
-          const rec = { id: Date.now(), at: stamp(new Date()), note: 'Home', router: NODES[0].name, down: HOPS[0].down, up: HOPS[0].up, grade: 'Good', weak: HOPS.some(isWeak) };
-          HISTORY.unshift(rec);
-          STATE.view = rec;
-        })();
-        return () => { alive = false; };
-      },
+      mount: el => { mountDots(el); return runTest(el, HOPS, () => saveRun(HOPS)); },
+    },
+    {
+      id: 'testing-skip',
+      back: 'home',
+      code: '1_031',
+      name: '測試中（不支援：一開始就排除）',
+      description: '測試中（有一台不支援，畫法 A）：一開始就排除 B10，畫主線 BT8 → BT10 → Phone，B10 是灰色分支加 i；不放說明文字，原因交給結果頁',
+      render: () => `
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+        <div class="body">${topology(false, '', SKIP_PATH, { 1: skippedBranch(SKIPPED) })}</div>
+        ${scenarioDots(TEST_IDS, 'testing-skip')}
+        <button class="demo-next" data-go="result-skip" data-label="next">next</button>`,
+      mount: el => { mountDots(el); return runTest(el, SKIP_PATH.hops, () => saveRun(SKIP_PATH.hops)); },
+    },
+    {
+      id: 'testing-skip-inline',
+      back: 'home',
+      code: '1_032',
+      name: '測試中（不支援：測到時才退出）',
+      description: '測試中（有一台不支援，畫法 B）：一開始照 1-2-3-4 排，測到 B10 時變灰、退出主線成為灰色分支加 i，接著測 BT10 → Phone；不放說明文字',
+      render: () => `
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+        <div class="body">${topology(false, '', FULL_PATH, { 1: skippedBranch(SKIPPED) })}</div>
+        ${scenarioDots(TEST_IDS, 'testing-skip-inline')}
+        <button class="demo-next" data-go="result-skip" data-label="next">next</button>`,
+      mount: el => { mountDots(el); return runSkipInLine(el, () => saveRun(SKIP_PATH.hops)); },
     },
     {
       id: 'result',
@@ -446,26 +493,8 @@
       name: '測試結果',
       description: '測試結果：整體評等、BT8 ↔ Phone 速度，以及節點狀態與訊號建議（點 Wifi signal weak 看建議）',
       figmaNode: '145:2382',
-      render: () => {
-        const r = STATE.view;
-        return `
-          ${navbar('AiMesh Diagnostic', backBtn, historyBtn)}
-          <div class="body">
-            <div class="summary">
-              <div class="grade ${r.grade === 'Good' ? '' : 'notice'}">${r.grade}</div>
-              <div class="grade-desc">Your network is healthy and performing well.</div>
-              <div class="pair">${r.router} <span class="arrows">↔</span> Phone</div>
-              ${speeds(r, true)}
-              <div class="stamp">${r.at}</div>
-            </div>
-            ${resultItems(r)}
-          </div>
-          <div class="actions">
-            <button class="btn-primary" data-go="detail">Detail Result</button>
-            <button class="text-link" data-go="testing">Test Again</button>
-          </div>`;
-      },
-      mount: countAll,
+      render: () => resultPage({ id: 'result', again: 'testing', detail: 'detail' }),
+      mount: el => { mountDots(el); countAll(el); },
     },
     {
       id: 'detail',
@@ -476,8 +505,33 @@
       figmaNode: '294:409',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="result" data-label="Cancel">Cancel</button>')}
-        <div class="body">${topology(true, 'data-decide="protocol"')}</div>`,
-      mount: rememberHop,
+        <div class="body">${topology(true, 'data-decide="protocol"')}</div>
+        ${scenarioDots(DETAIL_IDS, 'detail')}`,
+      mount: el => { mountDots(el); rememberHop(FULL_PATH)(el); },
+    },
+    {
+      id: 'result-skip',
+      back: 'testing-skip',
+      theme: 'gray',
+      code: '1_041',
+      name: '測試結果（有一台不支援）',
+      description: '測試結果（有一台不支援）：評等照有測到的段落算；最上面藍框「3 of 4 nodes tested」，點了進 Detail Result',
+      render: () => resultPage({ id: 'result-skip', again: 'testing-skip', detail: 'detail-skip', extra: skippedItem(SKIPPED, 'detail-skip') }),
+      mount: el => { mountDots(el); countAll(el); },
+    },
+    {
+      id: 'detail-skip',
+      back: 'result-skip',
+      code: '1_051',
+      name: 'Detail Result 拓撲（有一台不支援）',
+      description: 'Detail Result（有一台不支援）：主線 BT8 → BT10 → Phone，B10 灰色分支；點 i 或下方提示條看未測原因',
+      render: () => `
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="result-skip" data-label="Cancel">Cancel</button>')}
+        <div class="body">${topology(true, 'data-decide="protocol"', SKIP_PATH, { 1: skippedBranch(SKIPPED, true) })}</div>
+        ${skippedBar(SKIPPED)}
+        ${scenarioDots(DETAIL_IDS, 'detail-skip')}
+        ${skipSheet(SKIPPED)}`,
+      mount: el => { mountDots(el); rememberHop(SKIP_PATH)(el); mountSheet(el); },
     },
     {
       id: 'hop-udp',
@@ -717,8 +771,18 @@
   ];
 
   window.AIMESH_DECISIONS = {
-    protocol: {
+    nodes: {
       index: 0,
+      label: 'Nodes',
+      title: '這次測試的節點狀態？',
+      options: [
+        { label: '全部支援', short: '全部支援', value: 'all', to: 'testing' },
+        { label: '不支援：一開始就排除', short: '一開始就排除', value: 'skip', to: 'testing-skip' },
+        { label: '不支援：測到時才退出', short: '測到時才退出', value: 'inline', to: 'testing-skip-inline' },
+      ],
+    },
+    protocol: {
+      index: 1,
       label: 'Protocol',
       title: '這次測試用哪個通訊協定？',
       options: [
@@ -727,7 +791,7 @@
       ],
     },
     history: {
-      index: 1,
+      index: 2,
       label: 'History',
       title: 'Testing History 有沒有資料？',
       options: [

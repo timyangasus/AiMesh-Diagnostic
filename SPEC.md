@@ -24,11 +24,15 @@ Figma：[AiMesh Diagnostic](https://www.figma.com/design/DdMLHjlc77yfzpCWUUXFev/
 |---|---|---|---|---|
 | 1_020 | `home` | AiMesh Diagnostic 首頁 | 起點 | 250:507 |
 | 1_021 | `home-tip` | 使用提示（底部面板） | 首頁 ⓘ | 352:2421 |
-| 1_030 | `testing` | 測試中（動畫） | Start / Test Again / 3_010 Start | 294:412 / 294:413 / 294:410 |
+| 1_030 | `testing` | 測試中（動畫） | Start（全部支援）/ Test Again / 3_010 Start | 294:412 / 294:413 / 294:410 |
+| 1_031 | `testing-skip` | 測試中（有一台不支援，畫法 A：一開始就排除） | Start（一開始就排除） | — |
+| 1_032 | `testing-skip-inline` | 測試中（有一台不支援，畫法 B：測到時才退出） | Start（測到時才退出） | — |
 | 1_040 | `result` | 測試結果 | 1_030 右下 next | 145:2382 |
+| 1_041 | `result-skip` | 測試結果（有一台不支援） | 1_031 / 1_032 右下 next | — |
 | 1_050 | `detail` | Detail Result 拓撲 | 1_040 Detail Result | 294:409 |
-| 1_060 | `hop-udp` | 單段詳細結果 UDP | 1_050 點卡片 | 146:2936 |
-| 1_070 | `hop-tcp` | 單段詳細結果 TCP | 1_050 點卡片 | 146:2852 |
+| 1_051 | `detail-skip` | Detail Result 拓撲（有一台不支援） | 1_041 Detail Result / 點藍框 | — |
+| 1_060 | `hop-udp` | 單段詳細結果 UDP | 1_050 / 1_051 點卡片 | 146:2936 |
+| 1_070 | `hop-tcp` | 單段詳細結果 TCP | 1_050 / 1_051 點卡片 | 146:2852 |
 | 1_080 | `suggestions` | Suggestions | 結果頁點 Wifi signal weak | 252:1859 |
 | 1_090 | `feedback` | Feedback | Report Issue | 352:2565 |
 | 2_010 | `history-empty` | Testing History（沒有資料） | 時鐘圖示 | 567:277 |
@@ -44,6 +48,7 @@ Figma：[AiMesh Diagnostic](https://www.figma.com/design/DdMLHjlc77yfzpCWUUXFev/
 
 | 判斷 | 出現位置 | 選項 |
 |---|---|---|
+| Nodes | 首頁 Start | 全部支援 → 1_030、不支援：一開始就排除 → 1_031、不支援：測到時才退出 → 1_032 |
 | Protocol | 1_050 點任一段卡片 | UDP → 1_060、TCP → 1_070 |
 | History | 點右上時鐘圖示 | 有資料 → 2_020、沒有資料 → 2_010 |
 
@@ -54,11 +59,31 @@ Figma：[AiMesh Diagnostic](https://www.figma.com/design/DdMLHjlc77yfzpCWUUXFev/
 - 測完：數字變黑色，連線依下載速度變色（≥ 50 Mbps 綠色、< 50 Mbps 橘色）。
 - 三段都測完會存一筆到 Testing History，停在本頁（方便分頁討論）；按右下灰色 next（8pt）進結果頁；在結果頁按返回會回到 1_030。
 
+## 有一台不支援（1_031 / 1_032 / 1_041 / 1_051）
+
+例：1-2-3-4（BT8 → BT10 → B10 → Phone），B10 因韌體或機型不支援不測。2–4 是直接測，資料不經過 3。目前只有「不支援」這一種情境（沒有「測到一半沒回應」的 spec）。
+
+測試中有兩種畫法，討論用：
+- **1_031 畫法 A：一開始就排除**：一開始就畫 1 → 2 → 4，B10 是旁邊的灰色分支。
+- **1_032 畫法 B：測到時才退出**：一開始照 1-2-3-4 排；測到 B10 時卡片和節點變灰虛線，接著 B10 退出主線（卡片收起），變成 BT10 → Phone 連線旁的灰色分支，再測 BT10 → Phone。
+- 兩種都接到同一個結果頁 1_041、Detail 1_051。
+
+共同規則：
+- 測試中只用圖像，不放說明文字（測速快時使用者來不及看）；說明交給結果頁與 Detail。
+- 沒測到的那台：灰色虛線節點 + 藍底 i +「Not tested」，畫在主線旁，用虛線連過去，不插進主線，避免誤以為 2–4 經過 3。顏色用灰／藍（資訊），不代表網路有問題。
+- 主線只畫實際量測的路徑，連線照速度變色，不受 B10 影響。
+- 不幫裝置編號，用名稱、位置、icon 辨識。
+- 1_041 結果頁：評等照有測到的段落算；最上面一列藍框「3 of 4 nodes tested」（藍底 i、See details、箭頭），點了進 1_051。
+- 1_051 Detail Result：灰色節點沒有數據，不能點進單段頁；點它的 i 或下方「1 device not tested」提示條（藍底 i）跳出說明面板：原因、不代表網路有問題、Check for firmware update。
+- 1_060 / 1_070 不顯示 B10；從 1_051 點 BT10 → Phone 那段，標頭顯示 Kitchen ↔ Phone（直接量測）。
+- 換頁點點（demo 用）：測試中 3 個（全部支援／畫法 A／畫法 B），結果頁與 Detail 各 2 個（全部支援／有一台不支援），可隨時切換，切換不會多一層返回。
+
 ## 互動細節
 
 - Testing History：點卡片看那次的結果；••• → Edit a note（選位置或輸入，Apply 存回）或 Delete（OK 刪除，全部刪完變成沒有資料）。
 - Advanced Test：Duration、Protocol 可切換；Server、Client 進清單選一台後返回。
 - Feedback：清除鈕、下拉選單、字數計算可用；e-mail 空白時不能送出，送出後返回。
+- 底部 tab bar 的 Home 回到 AiMesh Diagnostic 首頁（1_020）；其他 tab 不動作。
 - 尚未加入的功能（Floor Plan Assistant、Firmware 等）點了會跳提示。
 
 ## 待辦

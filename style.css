@@ -378,6 +378,9 @@ button {
 .screen-history-note .navbar-title { color: #4a90e2; font-weight: 600; font-size: 15px; }
 
 .no-tabbar .tabbar { display: none; }
+/* Tap area over the tab bar image's Home tab (first of five) */
+.tabbar-home { position: absolute; z-index: 5; left: 0; bottom: var(--safe-bottom); width: 20%; height: var(--tabbar-h); padding: 0; border: 0; background: none; cursor: pointer; }
+.no-tabbar .tabbar-home { display: none; }
 .no-tabbar .screen { padding-bottom: var(--safe-bottom); }
 
 .body {
@@ -506,6 +509,90 @@ button {
   color: #9e9e9e;
   cursor: pointer;
 }
+
+/* Demo-only scenario dots on 1_030 / 1_031, centered on the same row as next */
+.demo-dots {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 9px);
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+}
+.demo-dots button { width: 18px; height: 14px; padding: 0; border: 0; background: none; cursor: pointer; display: grid; place-items: center; }
+.demo-dots button::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #d0d0d0; transition: background .2s, width .2s; }
+.demo-dots button.on::before { width: 16px; border-radius: 4px; background: #9e9e9e; }
+
+/* ── 1_031 有節點不支援 ── */
+/* Taller link so the skipped node's branch fits beside it */
+.link-seg.has-branch { height: 72px; }
+
+.skip-branch { position: absolute; left: 3px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; white-space: nowrap; }
+.skip-line { width: 34px; border-top: 1.6px dashed #c2c2c2; }
+.node.skipped .face { border: 1.6px dashed #b5b5b5; background: #f6f6f6; color: #ababab; }
+.skip-i {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  font: italic 700 10px/15px Georgia, serif;
+  text-align: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+.skip-text { margin-left: 9px; line-height: 1.25; }
+.skip-text b { display: block; font-size: 12px; color: #6b6b6b; }
+.skip-text small { display: block; font-size: 10px; color: #9a9a9a; }
+.skip-badge { display: inline-block; margin-top: 4px; padding: 2px 7px; border-radius: 4px; background: #e4e4e4; color: #3f3f3f; font-size: 11px; font-weight: 600; line-height: 15px; }
+
+button.skip-i { padding: 0; border: 0; cursor: pointer; }
+
+/* 1_041: the not-tested item stands out (blue frame, same blue i); tap for the full explanation */
+.item.item-skip { grid-template-columns: 22px 1fr 16px; gap: 10px; align-items: start; border: 1.5px solid var(--blue); border-radius: 10px; background: #f3f8fd; }
+.item-skip .skip-i { position: static; width: 22px; height: 22px; margin-top: 1px; font-size: 14px; line-height: 22px; box-shadow: none; }
+.item-skip h3 { margin-bottom: 4px; }
+.item-skip .item-more { display: inline-block; margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--blue); }
+.item-skip .row-chev { align-self: center; color: var(--blue); }
+
+/* Result pages: room between Test Again and the demo dots */
+.screen-result .actions, .screen-result-skip .actions { padding-bottom: 34px; }
+
+/* 1_051: compact not-tested bar above the dots; tap for the full explanation */
+.skip-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 30px;
+  padding: 10px 12px;
+  border: 1px solid #cfe2f6;
+  border-radius: 9px;
+  background: #f3f8fd;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+/* Same blue i as the skipped node above, so the two read as one */
+.skip-bar .skip-i { position: static; flex: none; width: 20px; height: 20px; font-size: 13px; line-height: 20px; box-shadow: none; }
+.skip-bar-text { flex: 1; text-align: left; }
+.skip-bar-text b { display: block; font-size: 13px; }
+.skip-bar-text small { display: block; margin-top: 2px; font-size: 11px; font-weight: 400; line-height: 15px; color: #666; }
+.skip-bar .row-chev { color: #9e9e9e; }
+.sheet.skip-sheet { height: auto; padding-bottom: 34px; }
+.skip-sheet h2 { padding: 0 20px; }
+.skip-sheet .inline-link { font-size: 13px; font-weight: 600; }
+
+/* 1_032: the branch waits hidden until B10 drops out of the line */
+.screen-testing-skip-inline .link-seg { transition: background .4s, height .45s; }
+.screen-testing-skip-inline .skip-branch { opacity: 0; transition: opacity .4s .15s; }
+.screen-testing-skip-inline .link-seg.branch-in .skip-branch { opacity: 1; }
+.card.unsupported { border-style: dashed; border-color: #c8c8c8; background: #fafafa; }
+.card.unsupported .node .face { border-style: dashed; border-color: #b5b5b5; color: #ababab; background: #f6f6f6; }
+
 
 /* ── 1_030 測試結果 ── */
 .summary { margin: 12px 18px 0; background: #fff; border-radius: 10px; padding: 14px 16px 16px; text-align: center; }
