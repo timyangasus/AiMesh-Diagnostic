@@ -53,18 +53,18 @@
   const WEAK_BELOW = 50; // Mbps download; below this a link is drawn orange
   const HOP_MS = 500;    // how long each hop's test runs
 
-  // Devices for Advanced Test (Select Server / Select Client)
+  // Devices for Advanced Test (Select Server / Select Client); fw: false = firmware doesn't support the test
   const SERVERS = [
     { name: 'ZenWiFi BT8(Home)', ip: '192.168.52.4' },
     { name: 'ZenWiFi BT10(Kitchen)', ip: '192.168.52.12' },
-    { name: 'ZenWiFi B10(Bedroom)', ip: '192.168.34.16' },
+    { name: 'ZenWiFi B10(Bedroom)', ip: '192.168.34.16', fw: false },
     { name: 'ZenWiFi BT10(Office)', ip: '192.168.11.45' },
     { name: 'ZenWiFi BT10(Garage)', ip: '192.168.36.1' },
     { name: 'RT-AX3000', ip: '192.168.22.26' },
   ];
   const CLIENTS = [
     { name: 'ZenWiFi BT10(Kitchen)', ip: '192.168.52.12' },
-    { name: 'ZenWiFi B10(Bedroom)', ip: '192.168.34.16' },
+    { name: 'ZenWiFi B10(Bedroom)', ip: '192.168.34.16', fw: false },
     { name: 'GT-AX11000(2F)', ip: '192.168.34.20' },
     { name: 'ZenWiFi BT10(Office)', ip: '192.168.11.45' },
     { name: 'iPhone 16', ip: '192.168.36.1' },
@@ -85,6 +85,7 @@
     hop: 0,
     path: FULL_PATH,    // nodes/hops the single-hop pages read from
     view: HISTORY[0],   // record shown on the result page
+    fromHistory: false, // result page opened from a Testing History card: a past record, no Test Again
     picked: null,       // record the ••• menu was opened on
     server: 0,
     client: 4,
@@ -129,7 +130,7 @@
       const n = nodes[i + 1];
       const linkCls = (done ? (isWeak(h) ? ' weak' : ' good') : '') + (beside[i] ? ' has-branch' : '');
       html += `
-        <div class="link-seg${linkCls}" data-link><span class="dots"><i></i><i></i><i></i><i></i><i></i></span>${beside[i] || ''}</div>
+        <div class="link-seg${linkCls}" data-link><span class="dots">${'<i></i>'.repeat(20)}</span>${beside[i] || ''}</div>
         <div class="card${done ? ' clickable done' : ''}" data-card data-hop="${i}"${done ? ` ${tapTo}` : ''}>
           <div class="col down"><div class="lbl">Download</div><div class="val">${done ? fmt(h.down) : '---'}</div><div class="unit">Mbps</div></div>
           <div class="divider"></div>
@@ -142,30 +143,32 @@
     return `<div class="topology">${html}</div>`;
   }
   // Gray dashed node off the main line: its firmware/model can't be tested, so it's not on the measured path
-  // explain: the i opens the not-tested sheet (Detail Result)
+  // explain: the whole branch is a button that opens the not-tested sheet; its badge turns into a blue "i 不支援" button.
+  // The badge says 不支援 (the reason), not 未測試, which reads like "not tested yet" while testing.
   const skippedBranch = (n, explain) => {
-    const tag = explain ? 'button data-explain' : 'span';
+    const tag = explain ? 'button' : 'div';
     return `
-    <div class="skip-branch">
+    <${tag} class="skip-branch"${explain ? ` data-explain aria-label="${n.name} 不支援，查看說明"` : ''}>
       <span class="skip-line"></span>
-      <div class="node skipped"><span class="face">${ICON[n.icon]}</span><${tag} class="skip-i" aria-label="未測試">i</${tag.split(' ')[0]}></div>
-      <div class="skip-text"><b>${n.name}</b><small>${n.place}</small><span class="skip-badge">未測試</span></div>
-    </div>`;
+      <div class="node skipped"><span class="face">${ICON[n.icon]}</span></div>
+      <div class="skip-text"><b>${n.name}</b><small>${n.place}</small>${explain
+        ? '<span class="skip-badge skip-badge-btn"><span class="skip-i">i</span>不支援</span>'
+        : '<span class="skip-badge">不支援</span>'}</div>
+    </${tag}>`;
   };
   // Several skipped nodes beside the same link: stacked
   const skippedGroup = (list, explain) => list.length === 1 ? skippedBranch(list[0], explain)
     : `<div class="skip-group">${list.map(n => skippedBranch(n, explain)).join('')}</div>`;
 
   const andList = a => a.length < 2 ? a.join('') : `${a.slice(0, -1).join('、')} 和 ${a[a.length - 1]}`;
-  // Result page row (framed, first in the list) and Detail Result bar for the skipped node(s)
-  const skippedItem = (list, to) => `<button class="item item-tap item-skip" data-go="${to}"><span class="skip-i">i</span><div><h3>已測試 ${NODES.length - list.length}／${NODES.length} 台節點</h3><p>${andList(list.map(n => `${n.name}（${n.place}）`))} 因韌體不支援未測試。</p><span class="item-more">查看詳情</span></div>${ICON.rowChevron}</button>`;
-  const skippedBar = list => `<button class="skip-bar" data-explain><span class="skip-i">i</span><span class="skip-bar-text"><b>${list.length} 台裝置未測試</b><small>韌體不支援，已改由最近一台支援的節點量測。</small></span>${ICON.rowChevron}</button>`;
+  // Result page row (framed, first in the list) for the skipped node(s)
+  const skippedItem = (list, to) => `<button class="item item-tap item-skip" data-go="${to}"><span class="skip-i">i</span><div><h3>${list.length} 台節點不支援此測試</h3><p>${andList(list.map(n => `${n.name}（${n.place}）`))} 的韌體不支援，已改由最近一台支援的節點量測。</p><span class="item-more">查看詳情</span></div>${ICON.rowChevron}</button>`;
   // Gray node rows, for listing several untestable nodes in a sheet
   const skippedRows = (list, badge) => `<ul class="skip-list">${list.map(n => `
     <li><div class="node skipped"><span class="face">${ICON[n.icon]}</span></div><span><b>${n.name}</b><small>${n.place}</small></span>${badge ? `<span class="skip-badge">${badge}</span>` : ''}</li>`).join('')}</ul>`;
 
   // Test one hop: from/to nodes spin, the link drips, the card counts up. live() false stops it.
-  async function testHop({ from, to, link, card, h, last }, live) {
+  async function testHop({ from, to, link, card, h, last }, live, ms = HOP_MS) {
     const dv = card.querySelector('.down .val'), uv = card.querySelector('.up .val');
     from.classList.add('pulse'); to.classList.add('pulse');
     link.classList.add('active');
@@ -177,7 +180,7 @@
     await new Promise(done => {
       (function step(now) {
         if (!live()) return done();
-        const p = Math.min(1, (now - t0) / HOP_MS);
+        const p = Math.min(1, (now - t0) / ms);
         const ease = 1 - Math.pow(1 - p, 3);
         const noise = p < 1 ? (Math.random() - .5) * 0.12 * (1 - p) : 0;
         dv.textContent = fmt(+(h.down * (ease + noise)).toFixed(h.down % 1 ? 1 : 0));
@@ -196,8 +199,17 @@
     await wait(100);
   }
 
+  // Auto-advance in place: back from the next page skips the finished test
+  const advance = (from, id) => setTimeout(() => {
+    if (location.hash !== `#${from}`) return;
+    const st = history.state;
+    location.replace(`#${id}`);
+    history.replaceState(st, '');
+  }, 300);
+
   // Run the test hop by hop on a rendered topology; returns a cleanup that stops it
-  function runTest(el, hops, onDone) {
+  // ms: how long each hop runs
+  function runTest(el, hops, onDone, ms) {
     let alive = true;
     const live = () => alive;
     const nodes = el.querySelectorAll('[data-node]');
@@ -206,13 +218,14 @@
     (async () => {
       await wait(100);
       for (let i = 0; i < hops.length && alive; i++) {
-        await testHop({ from: nodes[i], to: nodes[i + 1], link: links[i], card: cards[i], h: hops[i], last: i === hops.length - 1 }, live);
+        await testHop({ from: nodes[i], to: nodes[i + 1], link: links[i], card: cards[i], h: hops[i], last: i === hops.length - 1 }, live, ms);
       }
       await wait(100);
       if (alive) onDone();
     })();
     return () => { alive = false; };
   }
+
 
   // Shrink an element away (height, margins, border, opacity), for the node that drops out of the line
   function collapse(n, ms) {
@@ -223,11 +236,11 @@
     Object.assign(n.style, { height: '0px', marginTop: '0px', marginBottom: '0px', borderWidth: '0px', opacity: '0' });
   }
 
-  // 1_032 / 1_034: the same unsupported node(s), drawn another way — start with every node in line;
-  // each unsupported node grays out when reached, leaves the line and fades in as a gray branch
-  // beside the link it's skipped over; the remaining hops are tested as usual.
-  // skips: indexes into NODES that can't be tested; hops: the hops actually measured
-  function runInLine(el, skips, hops, onDone) {
+  // 1_034: the same unsupported nodes, drawn another way — start with every node in line (what the user
+  // knows of their mesh); each unsupported node grays out when reached, leaves the line and fades in as a
+  // gray branch beside the link it's skipped over; the remaining hops are tested as usual.
+  // skips: indexes into NODES that can't be tested; hops: the hops actually measured; ms: per hop
+  function runInLine(el, skips, hops, onDone, ms) {
     let alive = true;
     const live = () => alive;
     const nodes = el.querySelectorAll('[data-node]');
@@ -241,7 +254,7 @@
       for (let j = 1; j < nodes.length && alive; j++) {
         const card = cards[j - 1];
         if (!skips.includes(j)) {
-          await testHop({ from: nodes[from], to: nodes[j], link, card, h: hops[measured++], last: j === nodes.length - 1 }, live);
+          await testHop({ from: nodes[from], to: nodes[j], link, card, h: hops[measured++], last: j === nodes.length - 1 }, live, ms);
           from = j; link = links[j];
           continue;
         }
@@ -272,8 +285,8 @@
   }
 
   // Demo-only dots under the testing page: switch scenario in place (replace, so Back isn't stacked)
-  // Each group: [screen id, label]. Testing has two ways of drawing the same unsupported node.
-  const TEST_IDS = [['testing', '全部支援'], ['testing-skip', '一台不支援：一開始就排除'], ['testing-skip-inline', '一台不支援：測到時才退出'], ['testing-skip2', '兩台不支援：一開始就排除'], ['testing-skip2-inline', '兩台不支援：測到時才退出']];
+  // Each group: [screen id, label]
+  const TEST_IDS = [['testing', '全部支援'], ['testing-skip', '一台不支援'], ['testing-skip2', '兩台不支援'], ['testing-skip2-inline', '兩台不支援：測到時才退出']];
   const RESULT_IDS = [['result', '全部支援'], ['result-skip', '一台不支援'], ['result-skip2', '兩台不支援']];
   const DETAIL_IDS = [['detail', '全部支援'], ['detail-skip', '一台不支援'], ['detail-skip2', '兩台不支援']];
   const scenarioDots = (group, current) => `
@@ -286,26 +299,27 @@
     <div class="sheet skip-sheet" data-sheet hidden>
       <button class="sheet-close" data-close-sheet aria-label="關閉">${ICON.closeCircle}</button>
       ${list.length === 1 ? `
-      <h2>${list[0].name}（${list[0].place}）未測試</h2>
-      <p>這台裝置的韌體不支援這項測試，已改由最近一台支援的節點量測。這不代表你的網路有問題。</p>
-      <p>更新韌體後再測一次，就能包含這台裝置。</p>` : `
-      <h2>${list.length} 台裝置未測試</h2>
+      <h2>${list[0].name}（${list[0].place}）不支援此測試</h2>
+      <p>這台節點的韌體不支援這項測試，已改由最近一台支援的節點量測。</p>` : `
+      <h2>${list.length} 台節點不支援此測試</h2>
       ${skippedRows(list)}
-      <p>這些裝置的韌體不支援這項測試，已改由最近一台支援的節點量測。這不代表你的網路有問題。</p>
-      <p>更新韌體後再測一次，就能包含這些裝置。</p>`}
+      <p>這些節點的韌體不支援這項測試，已改由最近一台支援的節點量測。</p>`}
       <button class="inline-link" data-toast="Firmware 更新 – 尚未加入">檢查韌體更新</button>
     </div>`;
-  function mountSheet(el) {
+  // onClose: called after the sheet is closed. Returns whether the sheet is open now.
+  function mountSheet(el, onClose) {
     const show = on => el.querySelectorAll('[data-sheet]').forEach(n => { n.hidden = !on; });
     onTap(el, '[data-explain]', () => show(true));
-    onTap(el, '[data-close-sheet], .overlay[data-sheet]', () => show(false));
+    onTap(el, '[data-close-sheet], .overlay[data-sheet]', () => { show(false); if (onClose) onClose(); });
+    return () => !el.querySelector('[data-sheet]').hidden;
   }
 
-  // Save a finished run to Testing History; the result page (via next) shows it
+  // Save a finished run to Testing History; the result page shows it
   function saveRun(hops) {
     const rec = { id: Date.now(), at: stamp(new Date()), note: 'Home', router: NODES[0].name, down: hops[0].down, up: hops[0].up, grade: 'Good', weak: hops.some(isWeak) };
     HISTORY.unshift(rec);
     STATE.view = rec;
+    STATE.fromHistory = false;
   }
 
   // Remember which hop (and on which path) was tapped, for the single-hop pages
@@ -342,6 +356,8 @@
   function hopScreen(proto) {
     return () => {
       const a = STATE.path.nodes[STATE.hop], b = STATE.path.nodes[STATE.hop + 1];
+      // Nodes this hop goes past (unsupported): the test paired a with b instead. Shown only on such hops.
+      const passed = NODES.slice(NODES.indexOf(a) + 1, NODES.indexOf(b));
       return `
         ${navbar('Detail Result', backBtn, `<button class="navbar-btn navbar-btn-blue" data-toast="Info – 尚未加入" aria-label="說明">${ICON.info}</button>`)}
         <div class="body">
@@ -350,6 +366,7 @@
             <div class="hop-line ${isWeak(STATE.path.hops[STATE.hop]) ? 'weak' : 'good'}"></div>
             <div class="hop-end"><div class="big-node">${ICON[b.icon]}</div>${b.place}</div>
           </div>
+          ${passed.length ? `<p class="hop-skip"><span class="skip-i">i</span><span>${passed.map(n => n.name).join('、')} 的韌體不支援，已自動改由再上一層的 ${a.name}（${a.place}）與 ${b.name} 對測。</span></p>` : ''}
           ${hopRows(proto)}
           <p class="note">*Note:<br>Results show Mesh connectivity, not actual internet speed. Performance is subject to hardware, distance, and environmental interference.</p>
         </div>
@@ -358,6 +375,28 @@
         </div>`;
     };
   }
+
+  // 1_031 / 1_033: unsupported nodes are known before the test, so they're drawn off the line from the start.
+  // The gray branches can be tapped mid-test to open the not-tested sheet (no bar: the branches already do it).
+  // When done it goes on to the result page like 1_030, but waits while the sheet is open, until it's closed.
+  // Demo: each hop runs 12 s here (normal 1_030 stays fast).
+  const SKIP_HOP_MS = 12000;
+  const skipTesting = (id, path, beside, list) => `
+    ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+    <div class="body">${topology(false, '', path, beside)}</div>
+    ${scenarioDots(TEST_IDS, id)}
+    ${skipSheet(list)}`;
+  // run(el, onDone): runs the test (default: hop by hop along path)
+  const mountSkipTesting = (id, path, next, run = (el, done) => runTest(el, path.hops, done, SKIP_HOP_MS)) => el => {
+    let finished = false;
+    mountDots(el);
+    const sheetOpen = mountSheet(el, () => { if (finished) advance(id, next); });
+    return run(el, () => {
+      saveRun(path.hops);
+      finished = true;
+      if (!sheetOpen()) advance(id, next);
+    });
+  };
 
   // Result page, shared by 1_040 and 1_041 (a node not tested)
   function resultPage({ id, again, detail, extra = '' }) {
@@ -376,9 +415,9 @@
       </div>
       <div class="actions">
         <button class="btn-primary" data-go="${detail}">Detail Result</button>
-        <button class="text-link" data-go="${again}">Test Again</button>
+        ${STATE.fromHistory ? '' : `<button class="text-link" data-go="${again}">Test Again</button>`}
       </div>
-      ${scenarioDots(RESULT_IDS, id)}`;
+      ${STATE.fromHistory ? '' : scenarioDots(RESULT_IDS, id)}`;
   }
 
   // The home page itself, shared by 1_020 and its tip sheet 1_021
@@ -413,19 +452,25 @@
   const pickRecord = el => onTap(el, '[data-rec]', n => {
     const r = HISTORY.find(x => x.id === +n.dataset.rec);
     if (n.classList.contains('h-more')) STATE.picked = r;
-    else STATE.view = r;
+    else { STATE.view = r; STATE.fromHistory = true; }
   });
 
+  // Unsupported firmware: the row is grayed out, can't be picked, and says why
   function deviceList(list, key) {
     return `
       <div class="body">
         <div class="group sel-list">
-          ${list.map((d, i) => `
+          ${list.map((d, i) => d.fw === false ? `
+            <div class="sel-row off" aria-disabled="true">
+              <span><span class="sel-name">${d.name}</span><span class="sel-ip">${d.ip}</span></span>
+              <span class="sel-off">韌體不支援</span>
+            </div>` : `
             <button class="sel-row" data-go="back" data-pick="${i}">
               <span><span class="sel-name">${d.name}</span><span class="sel-ip">${d.ip}</span></span>
               ${STATE[key] === i ? `<span class="sel-check">${ICON.check}</span>` : ''}
             </button>`).join('')}
         </div>
+        ${list.some(d => d.fw === false) ? '<p class="sel-note">灰色的節點韌體不支援這項測試，無法選擇。更新韌體後即可使用。</p>' : ''}
       </div>`;
   }
   const pickDevice = key => el => onTap(el, '[data-pick]', n => { STATE[key] = +n.dataset.pick; });
@@ -481,70 +526,45 @@
       back: 'home',
       code: '1_030',
       name: '測試中',
-      description: '測試中：由路由器往手機一段一段測速，正在測的那段節點會轉圈、連線有流動的點，測完停在本頁，按右下 next 進入結果頁',
+      description: '測試中：由路由器往手機一段一段測速，正在測的那段節點會轉圈、連線有流動的點，測完直接進入結果頁',
       figmaNode: '294:412',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(false)}</div>
-        ${scenarioDots(TEST_IDS, 'testing')}
-        <button class="demo-next" data-go="result" data-label="next">next</button>`,
-      mount: el => { mountDots(el); return runTest(el, HOPS, () => saveRun(HOPS)); },
+        ${scenarioDots(TEST_IDS, 'testing')}`,
+      mount: el => { mountDots(el); return runTest(el, HOPS, () => { saveRun(HOPS); advance('testing', 'result'); }); },
     },
     {
       id: 'testing-skip',
       back: 'home',
       code: '1_031',
-      name: '測試中（一台不支援：一開始就排除）',
-      description: '測試中（有一台不支援，畫法 A）：一開始就排除 B10，畫主線 BT8 → BT10 → Phone，B10 是灰色分支加 i；不放說明文字，原因交給結果頁',
-      render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
-        <div class="body">${topology(false, '', SKIP_PATH, { 1: skippedBranch(SKIPPED) })}</div>
-        ${scenarioDots(TEST_IDS, 'testing-skip')}
-        <button class="demo-next" data-go="result-skip" data-label="next">next</button>`,
-      mount: el => { mountDots(el); return runTest(el, SKIP_PATH.hops, () => saveRun(SKIP_PATH.hops)); },
-    },
-    {
-      id: 'testing-skip-inline',
-      back: 'home',
-      code: '1_032',
-      name: '測試中（一台不支援：測到時才退出）',
-      description: '測試中（有一台不支援，畫法 B）：一開始照 1-2-3-4 排，測到 B10 時變灰、退出主線成為灰色分支加 i，接著測 BT10 → Phone；不放說明文字',
-      render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
-        <div class="body skip-inline">${topology(false, '', FULL_PATH, { 1: skippedBranch(SKIPPED) })}</div>
-        ${scenarioDots(TEST_IDS, 'testing-skip-inline')}
-        <button class="demo-next" data-go="result-skip" data-label="next">next</button>`,
-      mount: el => { mountDots(el); return runInLine(el, [2], SKIP_PATH.hops, () => saveRun(SKIP_PATH.hops)); },
+      name: '測試中（一台不支援）',
+      description: '測試中（有一台不支援）：開始前就知道 B10 不支援，一開始就畫主線 BT8 → BT10 → Phone，B10 是灰色分支；點灰色分支可看原因，測試不中斷；測完自動進結果頁，面板開著時等關掉再跳',
+      render: () => skipTesting('testing-skip', SKIP_PATH, { 1: skippedBranch(SKIPPED, true) }, [SKIPPED]),
+      mount: mountSkipTesting('testing-skip', SKIP_PATH, 'result-skip'),
     },
     {
       id: 'testing-skip2',
       back: 'home',
       code: '1_033',
-      name: '測試中（兩台不支援：一開始就排除）',
-      description: '測試中（兩台不支援，畫法 A）：BT10、B10 都不能測，只測 BT8 → Phone；兩台灰色分支疊在那段連線旁，不放說明文字',
-      render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
-        <div class="body">${topology(false, '', SKIP2_PATH, { 0: skippedGroup(SKIPPED_2) })}</div>
-        ${scenarioDots(TEST_IDS, 'testing-skip2')}
-        <button class="demo-next" data-go="result-skip2" data-label="next">next</button>`,
-      mount: el => { mountDots(el); return runTest(el, SKIP2_PATH.hops, () => saveRun(SKIP2_PATH.hops)); },
+      name: '測試中（兩台不支援）',
+      description: '測試中（兩台不支援）：開始前就知道 BT10、B10 不支援，只測 BT8 → Phone；兩台灰色分支疊在那段連線旁，點分支同 1_031',
+      render: () => skipTesting('testing-skip2', SKIP2_PATH, { 0: skippedGroup(SKIPPED_2, true) }, SKIPPED_2),
+      mount: mountSkipTesting('testing-skip2', SKIP2_PATH, 'result-skip2'),
     },
     {
       id: 'testing-skip2-inline',
       back: 'home',
       code: '1_034',
       name: '測試中（兩台不支援：測到時才退出）',
-      description: '測試中（兩台不支援，畫法 B）：一開始照 1-2-3-4 排，測到 BT10、B10 時依序變灰、退出主線，疊成 BT8 → Phone 旁的兩個灰色分支，最後測 BT8 → Phone；不放說明文字',
-      render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
-        <div class="body skip-inline">${topology(false, '', FULL_PATH, { 0: skippedGroup(SKIPPED_2) })}</div>
-        ${scenarioDots(TEST_IDS, 'testing-skip2-inline')}
-        <button class="demo-next" data-go="result-skip2" data-label="next">next</button>`,
-      mount: el => { mountDots(el); return runInLine(el, [1, 2], SKIP2_PATH.hops, () => saveRun(SKIP2_PATH.hops)); },
+      description: '測試中（兩台不支援，討論用畫法）：一開始照使用者認知的 4 台排好，測到 BT10、B10 時依序變灰、退出主線，疊成 BT8 → Phone 旁的兩個灰色分支，最後測 BT8 → Phone',
+      render: () => skipTesting('testing-skip2-inline', FULL_PATH, { 0: skippedGroup(SKIPPED_2, true) }, SKIPPED_2).replace('<div class="body">', '<div class="body skip-inline">'),
+      mount: mountSkipTesting('testing-skip2-inline', SKIP2_PATH, 'result-skip2',
+        (el, done) => runInLine(el, [1, 2], SKIP2_PATH.hops, done, SKIP_HOP_MS)),
     },
     {
       id: 'result',
-      back: 'testing',
+      back: 'home',
       theme: 'gray',
       code: '1_040',
       name: '測試結果',
@@ -568,11 +588,11 @@
     },
     {
       id: 'result-skip',
-      back: 'testing-skip',
+      back: 'home',
       theme: 'gray',
       code: '1_041',
       name: '測試結果（有一台不支援）',
-      description: '測試結果（有一台不支援）：評等照有測到的段落算；最上面藍框「已測試 3／4 台節點」，點了進 Detail Result',
+      description: '測試結果（有一台不支援）：評等照有測到的段落算；最上面藍框「1 台節點不支援此測試」，點了進 Detail Result',
       render: () => resultPage({ id: 'result-skip', again: 'testing-skip', detail: 'detail-skip', extra: skippedItem([SKIPPED], 'detail-skip') }),
       mount: mountDots,
     },
@@ -581,22 +601,21 @@
       back: 'result-skip',
       code: '1_051',
       name: 'Detail Result 拓撲（有一台不支援）',
-      description: 'Detail Result（有一台不支援）：主線 BT8 → BT10 → Phone，B10 灰色分支；點 i 或下方提示條看未測原因',
+      description: 'Detail Result（有一台不支援）：主線 BT8 → BT10 → Phone，B10 灰色分支；點分支（ⓘ 不支援）看原因',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="result-skip" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(true, 'data-decide="protocol"', SKIP_PATH, { 1: skippedBranch(SKIPPED, true) })}</div>
-        ${skippedBar([SKIPPED])}
         ${scenarioDots(DETAIL_IDS, 'detail-skip')}
         ${skipSheet([SKIPPED])}`,
       mount: el => { mountDots(el); rememberHop(SKIP_PATH)(el); mountSheet(el); },
     },
     {
       id: 'result-skip2',
-      back: 'testing-skip2',
+      back: 'home',
       theme: 'gray',
       code: '1_042',
       name: '測試結果（兩台不支援）',
-      description: '測試結果（兩台不支援）：評等照有測到的段落算；最上面藍框「已測試 2／4 台節點」列出兩台，點了進 Detail Result',
+      description: '測試結果（兩台不支援）：評等照有測到的段落算；最上面藍框「2 台節點不支援此測試」列出兩台，點了進 Detail Result',
       render: () => resultPage({ id: 'result-skip2', again: 'testing-skip2', detail: 'detail-skip2', extra: skippedItem(SKIPPED_2, 'detail-skip2') }),
       mount: mountDots,
     },
@@ -605,11 +624,10 @@
       back: 'result-skip2',
       code: '1_052',
       name: 'Detail Result 拓撲（兩台不支援）',
-      description: 'Detail Result（兩台不支援）：主線 BT8 → Phone，BT10、B10 兩個灰色分支疊在旁邊；點 i 或下方「2 台裝置未測試」看兩台清單與原因',
+      description: 'Detail Result（兩台不支援）：主線 BT8 → Phone，BT10、B10 兩個灰色分支疊在旁邊；點分支（ⓘ 不支援）看兩台清單與原因',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="result-skip2" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(true, 'data-decide="protocol"', SKIP2_PATH, { 0: skippedGroup(SKIPPED_2, true) })}</div>
-        ${skippedBar(SKIPPED_2)}
         ${scenarioDots(DETAIL_IDS, 'detail-skip2')}
         ${skipSheet(SKIPPED_2)}`,
       mount: el => { mountDots(el); rememberHop(SKIP2_PATH)(el); mountSheet(el); },
@@ -858,9 +876,8 @@
       title: '這次測試的節點狀態？',
       options: [
         { label: '全部支援', short: '全部支援', value: 'all', to: 'testing' },
-        { label: '一台不支援：一開始就排除', short: '一台・一開始就排除', value: 'skip', to: 'testing-skip' },
-        { label: '一台不支援：測到時才退出', short: '一台・測到時才退出', value: 'inline', to: 'testing-skip-inline' },
-        { label: '兩台不支援：一開始就排除', short: '兩台・一開始就排除', value: 'skip2', to: 'testing-skip2' },
+        { label: '一台不支援', short: '一台不支援', value: 'skip', to: 'testing-skip' },
+        { label: '兩台不支援', short: '兩台不支援', value: 'skip2', to: 'testing-skip2' },
         { label: '兩台不支援：測到時才退出', short: '兩台・測到時才退出', value: 'skip2-inline', to: 'testing-skip2-inline' },
         { label: '全部不支援（無法開始）', short: '全部不支援', value: 'none', to: 'home-unsupported' },
       ],
