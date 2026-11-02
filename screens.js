@@ -311,19 +311,8 @@
   // Remember which hop (and on which path) was tapped, for the single-hop pages
   const rememberHop = path => el => onTap(el, '[data-card]', c => { STATE.hop = +c.dataset.hop; STATE.path = path; });
 
-  function countUp(el, to, ms = 900) {
-    const t0 = performance.now();
-    (function step(now) {
-      if (!el.isConnected) return;
-      const p = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - p, 3);
-      el.textContent = p < 1 ? (to * e).toFixed(1) : fmt(to);
-      if (p < 1) requestAnimationFrame(step);
-    })(t0);
-  }
-  const countAll = el => el.querySelectorAll('[data-count]').forEach(b => countUp(b, +b.dataset.count));
-
-  function speeds(r, counting) {
-    const v = x => counting ? `<b data-count="${x}">0</b>` : `<b>${fmt(x)}</b>`;
+  function speeds(r) {
+    const v = x => `<b>${fmt(x)}</b>`;
     return `
       <div class="speeds">
         <span class="sp down">${ICON.down}${v(r.down)}<small>Mbps</small></span>
@@ -358,7 +347,7 @@
         <div class="body">
           <div class="hop-head">
             <div class="hop-end"><div class="big-node">${ICON[a.icon]}</div>${a.place}</div>
-            <div class="hop-line ${proto.toLowerCase()}"></div>
+            <div class="hop-line ${isWeak(STATE.path.hops[STATE.hop]) ? 'weak' : 'good'}"></div>
             <div class="hop-end"><div class="big-node">${ICON[b.icon]}</div>${b.place}</div>
           </div>
           ${hopRows(proto)}
@@ -380,7 +369,7 @@
           <div class="grade ${r.grade === 'Good' ? '' : 'notice'}">${r.grade}</div>
           <div class="grade-desc">Your network is healthy and performing well.</div>
           <div class="pair">${r.router} <span class="arrows">↔</span> Phone</div>
-          ${speeds(r, true)}
+          ${speeds(r)}
           <div class="stamp">${r.at}</div>
         </div>
         ${resultItems(r, extra)}
@@ -415,7 +404,7 @@
           <span class="h-grade ${r.grade === 'Good' ? 'good' : 'notice'}">${r.grade}</span>
         </div>
         <div class="pair">${r.router} <span class="arrows">↔</span> Phone</div>
-        ${speeds(r, false)}
+        ${speeds(r)}
       </div>`).join('');
   }
   const historyList = () => `
@@ -562,7 +551,7 @@
       description: '測試結果：整體評等、BT8 ↔ Phone 速度，以及節點狀態與訊號建議（點 Wifi signal weak 看建議）',
       figmaNode: '145:2382',
       render: () => resultPage({ id: 'result', again: 'testing', detail: 'detail' }),
-      mount: el => { mountDots(el); countAll(el); },
+      mount: mountDots,
     },
     {
       id: 'detail',
@@ -585,7 +574,7 @@
       name: '測試結果（有一台不支援）',
       description: '測試結果（有一台不支援）：評等照有測到的段落算；最上面藍框「已測試 3／4 台節點」，點了進 Detail Result',
       render: () => resultPage({ id: 'result-skip', again: 'testing-skip', detail: 'detail-skip', extra: skippedItem([SKIPPED], 'detail-skip') }),
-      mount: el => { mountDots(el); countAll(el); },
+      mount: mountDots,
     },
     {
       id: 'detail-skip',
@@ -609,7 +598,7 @@
       name: '測試結果（兩台不支援）',
       description: '測試結果（兩台不支援）：評等照有測到的段落算；最上面藍框「已測試 2／4 台節點」列出兩台，點了進 Detail Result',
       render: () => resultPage({ id: 'result-skip2', again: 'testing-skip2', detail: 'detail-skip2', extra: skippedItem(SKIPPED_2, 'detail-skip2') }),
-      mount: el => { mountDots(el); countAll(el); },
+      mount: mountDots,
     },
     {
       id: 'detail-skip2',

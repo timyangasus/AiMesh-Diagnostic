@@ -18,7 +18,6 @@
   --orange: #ff9305;
   --link-good: #3aa878;
   --link-weak: #f5a500;
-  --link-tcp: #d961d2;
   --text: #000000;
   --text-sub: #3f3f3f;
   --muted: #b5b5b5;
@@ -659,7 +658,8 @@ button.skip-i { padding: 0; border: 0; cursor: pointer; }
 .big-node { width: 62px; height: 62px; border-radius: 50%; border: 1.6px solid var(--blue); display: grid; place-items: center; color: var(--blue); }
 .big-node svg { width: 32px; height: 32px; }
 .hop-line { width: 108px; height: 5px; margin: 29px -10px 0; background: var(--link-good); }
-.hop-line.tcp { background: var(--link-tcp); }
+/* Same color as the hop's link on Detail Result */
+.hop-line.weak { background: var(--link-weak); }
 .kv { list-style: none; }
 .kv li { display: flex; justify-content: space-between; align-items: center; height: 42px; padding: 0 26px 0 28px; border-bottom: 1px solid var(--line); font-size: 15px; color: var(--text-sub); }
 .kv li b { color: var(--blue); font-weight: 600; }

@@ -63,6 +63,7 @@ Figma：[AiMesh Diagnostic](https://www.figma.com/design/DdMLHjlc77yfzpCWUUXFev/
 - 正在測的那段：兩端節點有綠色旋轉光環、連線是往下流動的藍點、數字藍／紫色跳動往上數。
 - 測完：數字變黑色，連線依下載速度變色（≥ 50 Mbps 綠色、< 50 Mbps 橘色）。
 - 三段都測完會存一筆到 Testing History，停在本頁（方便分頁討論）；按右下灰色 next（8pt）進結果頁；在結果頁按返回會回到 1_030。
+- 結果頁（1_040 / 1_041 / 1_042）Good 區塊的速度直接顯示數值，不做往上數的動畫。
 
 ## 有一台不支援（1_031 / 1_032 / 1_041 / 1_051）
 
@@ -88,6 +89,7 @@ Figma：[AiMesh Diagnostic](https://www.figma.com/design/DdMLHjlc77yfzpCWUUXFev/
 
 ## 互動細節
 
+- 單段詳細結果（1_060 / 1_070）上方連線顏色和 Detail Result 那段一樣（≥ 50 Mbps 綠色、< 50 Mbps 黃色），UDP、TCP 都一樣。
 - Testing History：點卡片看那次的結果；••• → Edit a note（選位置或輸入，Apply 存回）或 Delete（OK 刪除，全部刪完變成沒有資料）。
 - Advanced Test：Duration、Protocol 可切換；Server、Client 進清單選一台後返回。
 - Feedback：清除鈕、下拉選單、字數計算可用；e-mail 空白時不能送出，送出後返回。
