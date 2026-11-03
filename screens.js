@@ -559,8 +559,8 @@
     // The same device can't be both ends of the test
     if (key === 'client' && d.name === SERVERS[STATE.server].name) return '已選為 Server';
     if (key === 'server' && d.name === CLIENTS[STATE.client].name) return '已選為 Client';
-    if (key === 'client' && d.phone && SERVERS[STATE.server].noPhone) return 'Server 不支援';
-    if (key === 'server' && d.noPhone && CLIENTS[STATE.client].phone) return '不支援與手機對測';
+    if (key === 'client' && d.phone && SERVERS[STATE.server].noPhone) return '行動裝置不支援';
+    if (key === 'server' && d.noPhone && CLIENTS[STATE.client].phone) return '不支援行動裝置';
     return '';
   }
   // Demo-only: each device's firmware case next to its IP, so testers know what to pick
@@ -571,14 +571,17 @@
     const names = tag => list.filter((d, i) => why[i] === tag).map(d => d.name).join('、');
     const notes = [];
     if (why.includes('韌體不支援')) notes.push(`${names('韌體不支援')} 目前的韌體版本不支援此測試。`);
-    if (why.includes('不支援與手機對測')) notes.push(`${names('不支援與手機對測')} 的韌體不支援與手機進行測試。如需選擇，請先將 Client 改為其他 AiMesh 節點。`);
+    if (why.includes('不支援行動裝置')) notes.push(`${names('不支援行動裝置')} 的韌體不支援與行動裝置進行測試。如需選擇，請先將 Client 改為其他 AiMesh 節點。`);
     if (why.includes('已選為 Server') || why.includes('已選為 Client')) notes.push('同一台裝置不能同時當 Server 和 Client。');
-    if (why.includes('Server 不支援')) notes.push(`目前選擇的 Server（${SERVERS[STATE.server].name}）韌體不支援與手機進行測試，因此無法選擇手機。請更換 Server，或選擇其他 Client。`);
+    if (why.includes('行動裝置不支援')) notes.push(`目前選擇的 Server（${SERVERS[STATE.server].name}）韌體不支援與行動裝置進行測試，因此無法選擇行動裝置。請更換 Server，或選擇其他 Client。`);
     const note = notes.length ? `<ul class="sel-note">${notes.map(n => `<li>${n}</li>`).join('')}</ul>` : '';
+    // Pickable nodes first, then a pickable phone, then the grayed ones (each group keeps its list order)
+    const rank = i => why[i] ? 2 : list[i].phone ? 1 : 0;
+    const order = list.map((_, i) => i).sort((x, y) => rank(x) - rank(y));
     return `
       <div class="body">
         <div class="group sel-list">
-          ${list.map((d, i) => why[i] ? `
+          ${order.map(i => [list[i], i]).map(([d, i]) => why[i] ? `
             <div class="sel-row off" aria-disabled="true">
               <span><span class="sel-name">${d.name}</span><span class="sel-ip">${d.ip}${caseTag(d)}</span></span>
               <span class="sel-off">${why[i]}</span>

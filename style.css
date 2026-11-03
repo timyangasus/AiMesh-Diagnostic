@@ -768,24 +768,27 @@ button.skip-branch:active .skip-text, button.skip-branch:active .node { opacity:
 .seg { display: inline-flex; background: #ececec; border-radius: 6px; padding: 2px; }
 .seg button { min-width: 42px; height: 26px; padding: 0 9px; border-radius: 5px; font-size: 14px; text-align: center; color: #222; }
 .seg button.on { background: #3a8ee6; color: #fff; }
-/* Case-B pair in Advanced Test: options locked (grayed). Protocol keeps TCP blue — it's the one that runs;
-   Duration is grayed as a whole (can't be adjusted) */
+/* Case-B pair in Advanced Test: options locked (grayed). Protocol keeps TCP blue with white text — it's the
+   one that runs; Duration is grayed as a whole with no option standing out, so 30s doesn't read as a default */
 .seg.locked button { cursor: default; color: #b5b5b5; }
-.adv-row.off .seg.locked button.on { background: #c9c9c9; color: #fff; }
+.seg.locked button.on { color: #fff; }
+.adv-row.off .seg.locked button, .adv-row.off .seg.locked button.on { background: transparent; color: #b5b5b5; }
 .adv-row.off b { color: #b5b5b5; }
 
 /* 3_020 / 3_030 Select Server / Client */
 .sel-list { margin-top: 8px; }
-.sel-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 16px; border-bottom: 1px solid #ddd; text-align: left; }
+.sel-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 14px 16px; border-bottom: 1px solid #ddd; text-align: left; }
 .sel-row:last-child { border-bottom: 0; }
 .sel-name { display: block; font-size: 16px; }
-.sel-ip { display: block; font-size: 12px; color: #888; margin-top: 1px; }
+.sel-ip { display: block; font-size: 12px; color: #888; margin-top: 4px; }
 /* Demo-only firmware case tag after the IP (purple mono, like the demo bar, so it reads as an annotation) */
 .case-tag { margin-left: 8px; font: 10px/1 ui-monospace, Menlo, monospace; color: #8a5cf6; }
 .sel-row.off .case-tag { color: #b9a3f2; }
 /* Firmware doesn't support the test: grayed out, not selectable */
 .sel-row.off { cursor: default; }
 .sel-row.off .sel-name, .sel-row.off .sel-ip { color: #c2c2c2; }
+/* Pickable devices: a bolder name so they stand apart from the grayed ones */
+.sel-row:not(.off) .sel-name { font-weight: 600; color: #111; }
 .sel-off { flex: none; padding: 2px 7px; border-radius: 4px; background: #eee; color: #8a8a8a; font-size: 11px; font-weight: 600; }
 .sel-note { margin: 10px 16px 0; padding-left: 16px; list-style: disc; font-size: 13px; line-height: 1.5; color: #4a4a4a; }
 .sel-note li + li { margin-top: 6px; }
