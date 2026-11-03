@@ -555,26 +555,19 @@
   //  some routers' firmware can't be tested against any phone (the router is the problem, not the phone)
   //  → whichever side is picked first grays out the other's match
   function unavailable(d, key) {
-    if (d.fw === false) return '韌體不支援';
+    if (d.fw === false) return '韌體不支援此測試';
     // The same device can't be both ends of the test
     if (key === 'client' && d.name === SERVERS[STATE.server].name) return '已選為 Server';
     if (key === 'server' && d.name === CLIENTS[STATE.client].name) return '已選為 Client';
-    if (key === 'client' && d.phone && SERVERS[STATE.server].noPhone) return '行動裝置不支援';
-    if (key === 'server' && d.noPhone && CLIENTS[STATE.client].phone) return '不支援行動裝置';
+    if (key === 'client' && d.phone && SERVERS[STATE.server].noPhone) return '目前的 Server 無法與行動裝置對測';
+    if (key === 'server' && d.noPhone && CLIENTS[STATE.client].phone) return '無法與行動裝置對測';
     return '';
   }
   // Demo-only: each device's firmware case next to its IP, so testers know what to pick
   const caseTag = d => `<span class="case-tag">${d.phone ? '手機' : d.fw === false ? 'A｜不支援測試' : d.noPhone ? 'B｜僅 router↔router・TCP' : 'C｜完整功能'}</span>`;
-  // Unavailable rows are grayed out, can't be picked, and say why; a note under the list explains
+  // Unavailable rows are grayed out, can't be picked, and say why on their own second line
   function deviceList(list, key) {
     const why = list.map(d => unavailable(d, key));
-    const names = tag => list.filter((d, i) => why[i] === tag).map(d => d.name).join('、');
-    const notes = [];
-    if (why.includes('韌體不支援')) notes.push(`${names('韌體不支援')} 目前的韌體版本不支援此測試。`);
-    if (why.includes('不支援行動裝置')) notes.push(`${names('不支援行動裝置')} 的韌體不支援與行動裝置進行測試。如需選擇，請先將 Client 改為其他 AiMesh 節點。`);
-    if (why.includes('已選為 Server') || why.includes('已選為 Client')) notes.push('同一台裝置不能同時當 Server 和 Client。');
-    if (why.includes('行動裝置不支援')) notes.push(`目前選擇的 Server（${SERVERS[STATE.server].name}）韌體不支援與行動裝置進行測試，因此無法選擇行動裝置。請更換 Server，或選擇其他 Client。`);
-    const note = notes.length ? `<ul class="sel-note">${notes.map(n => `<li>${n}</li>`).join('')}</ul>` : '';
     // Pickable nodes first, then a pickable phone, then the grayed ones (each group keeps its list order)
     const rank = i => why[i] ? 2 : list[i].phone ? 1 : 0;
     const order = list.map((_, i) => i).sort((x, y) => rank(x) - rank(y));
@@ -583,15 +576,13 @@
         <div class="group sel-list">
           ${order.map(i => [list[i], i]).map(([d, i]) => why[i] ? `
             <div class="sel-row off" aria-disabled="true">
-              <span><span class="sel-name">${d.name}</span><span class="sel-ip">${d.ip}${caseTag(d)}</span></span>
-              <span class="sel-off">${why[i]}</span>
+              <span><span class="sel-name">${d.name}</span><span class="sel-why"><span class="skip-i">i</span>${why[i]}${caseTag(d)}</span></span>
             </div>` : `
             <button class="sel-row" data-go="back" data-pick="${i}">
               <span><span class="sel-name">${d.name}</span><span class="sel-ip">${d.ip}${caseTag(d)}</span></span>
               ${STATE[key] === i ? `<span class="sel-check">${ICON.check}</span>` : ''}
             </button>`).join('')}
         </div>
-        ${note}
       </div>`;
   }
   const pickDevice = key => el => onTap(el, '[data-pick]', n => { STATE[key] = +n.dataset.pick; });
@@ -782,7 +773,7 @@
       description: 'Detail Result：每一段連線的上下行速度，綠色是良好、橘色是偏慢，點卡片看那一段的詳細數據',
       figmaNode: '294:409',
       render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Done">Done</button>')}
         <div class="body">${topology(true, 'data-decide="protocol"')}</div>
         `,
       mount: el => { mountDots(el); rememberHop(FULL_PATH)(el); },
@@ -805,7 +796,7 @@
       name: 'Detail Result 拓撲（有一台不支援）',
       description: 'Detail Result（有一台不支援）：主線 BT8 → BT10 → Phone，B10 灰色分支；點分支（ⓘ 不支援）看原因',
       render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Done">Done</button>')}
         <div class="body">${topology(true, 'data-decide="protocol"', SKIP_PATH, { 1: skippedBranch(SKIPPED, true) })}</div>
         
         ${skipSheet([SKIPPED])}`,
@@ -829,7 +820,7 @@
       name: 'Detail Result 拓撲（兩台不支援）',
       description: 'Detail Result（兩台不支援）：主線 BT8 → Phone，BT10、B10 兩個灰色分支疊在旁邊；點分支（ⓘ 不支援）看兩台清單與原因',
       render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Done">Done</button>')}
         <div class="body">${topology(true, 'data-decide="protocol"', SKIP2_PATH, { 0: skippedGroup(SKIPPED_2, true) })}</div>
         
         ${skipSheet(SKIPPED_2)}`,
@@ -853,7 +844,7 @@
       name: 'Detail Result 拓撲（有一台僅支援 TCP）',
       description: 'Detail Result（有一台 B）：拓撲照常，只跑了 TCP，所以點卡片直接進 TCP 單段頁（不問 UDP / TCP）；每段的單段頁都有「本次僅以 TCP 測試」說明與 FAQ',
       render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Done">Done</button>')}
         <div class="body">${topology(true, 'data-go="hop-tcp"', TCP_PATH)}</div>
         `,
       mount: el => { mountDots(el); rememberHop(TCP_PATH)(el); },
@@ -865,7 +856,7 @@
       name: 'Detail Result 拓撲（CAP 僅 TCP，手機連 CAP）',
       description: 'Detail Result（CAP 是 B、手機連在 CAP）：BT8 → BT10 → B10（只跑 TCP），手機是 B10 後面虛線旁的灰色分支，點了看原因；點卡片直接進 TCP 單段頁',
       render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Done">Done</button>')}
         <div class="body">${capBTopology()}</div>
         
         ${capPhoneSheet()}`,

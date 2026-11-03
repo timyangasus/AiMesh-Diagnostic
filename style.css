@@ -789,7 +789,9 @@ button.skip-branch:active .skip-text, button.skip-branch:active .node { opacity:
 .sel-row.off .sel-name, .sel-row.off .sel-ip { color: #c2c2c2; }
 /* Pickable devices: a bolder name so they stand apart from the grayed ones */
 .sel-row:not(.off) .sel-name { font-weight: 600; color: #111; }
-.sel-off { flex: none; padding: 2px 7px; border-radius: 4px; background: #eee; color: #8a8a8a; font-size: 11px; font-weight: 600; }
+/* The reason a row can't be picked, right under its name (readable, darker than the grayed name) */
+.sel-why { display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 13px; color: #5a5a5a; }
+.sel-why .skip-i { position: static; flex: none; width: 15px; height: 15px; font-size: 10px; line-height: 15px; box-shadow: none; transform: none; }
 .sel-note { margin: 10px 16px 0; padding-left: 16px; list-style: disc; font-size: 13px; line-height: 1.5; color: #4a4a4a; }
 .sel-note li + li { margin-top: 6px; }
 .sel-check { color: var(--blue); display: flex; }
