@@ -535,7 +535,8 @@ button {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #34c759;
+  border: 2px solid #fff;
+  box-sizing: border-box;
 }
 .test-done-check svg { width: 26px; height: 26px; stroke-width: 2.6; }
 @keyframes test-done-in { from { opacity: 0; transform: translate(-50%, -50%) scale(.9); } }
