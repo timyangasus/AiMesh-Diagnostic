@@ -201,6 +201,21 @@
   const andList = a => a.length < 2 ? a.join('') : `${a.slice(0, -1).join('、')} 和 ${a[a.length - 1]}`;
   // Result page row (framed, first in the list) for the skipped node(s)
   const skippedItem = (list, to) => `<button class="item item-tap item-skip" data-go="${to}"><span class="skip-i">i</span><div><h3>${list.length} 台節點不支援此測試</h3><p>${andList(list.map(n => `${n.name}（${n.place}）`))} 的韌體不支援，已改由最近一台支援的節點量測。</p><span class="item-more">查看詳情</span></div>${ICON.rowChevron}</button>`;
+  // 1_023 / 1_024: CAP is case A, so the test can't start. Advanced Test is suggested only when at least two REs support it
+  const capBlockSheet = withAdv => `
+        ${homeContent()}
+        <div class="overlay" data-go="back"></div>
+        <div class="sheet skip-sheet block-sheet">
+          <button class="sheet-close" data-go="back" aria-label="關閉">${ICON.closeCircle}</button>
+          <div class="block-hero"><span class="face">${ICON[NODES[0].icon]}</span><span class="skip-i">i</span></div>
+          <h2>無法開始測試</h2>
+          <p class="block-msg">測試會從主路由器開始，一路測到手機。主路由器 <b>${NODES[0].name}</b> 目前的韌體版本不支援此測試，所以${withAdv ? '即使其他節點支援，' : ''}整條連線都無法測試。</p>
+          ${skippedRows([{ ...NODES[0], place: `主路由器 · ${NODES[0].place}` }], '不支援')}
+          ${withAdv ? `<div class="hop-skip sheet-callout"><span class="skip-i">i</span><span>想測試節點之間的連線，可以改用 <b>Advanced Test</b>，自行選擇兩台支援的節點對測。</span></div>
+          <button class="btn-primary skip-sheet-btn" data-go="advanced" data-label="改用 Advanced Test">改用 Advanced Test</button>
+          <button class="text-link skip-sheet-link" data-go="back">確定</button>` : `<button class="btn-primary skip-sheet-btn" data-go="back" data-label="確定">確定</button>`}
+        </div>`;
+
   // 1_043: a case-B node in the topology → the whole quick test ran TCP only; suggest a firmware update (FAQ)
   const tcpOnlyItem = n => `<button class="item item-tap item-skip" data-toast="FAQ – 尚未加入"><span class="skip-i">i</span><div><h3>本次僅以 TCP 測試</h3><p>${n.name}（${n.place}）的韌體版本僅支援 TCP，因此本次全部以 TCP 測試。</p><span class="item-more">查看 FAQ</span></div>${ICON.rowChevron}</button>`;
   // Gray node rows, for listing several untestable nodes in a sheet
@@ -666,19 +681,15 @@
       code: '1_023',
       name: 'CAP 不支援（無法開始）',
       description: 'CAP 不支援（case A）：測試從 CAP 開始，CAP 不能測就沒有上一層可改接，按 Start 直接跳出面板，說明是主路由器韌體導致整條無法測，建議改用 Advanced Test 讓節點間對測',
-      render: () => `
-        ${homeContent()}
-        <div class="overlay" data-go="back"></div>
-        <div class="sheet skip-sheet block-sheet">
-          <button class="sheet-close" data-go="back" aria-label="關閉">${ICON.closeCircle}</button>
-          <div class="block-hero"><span class="face">${ICON[NODES[0].icon]}</span><span class="skip-i">i</span></div>
-          <h2>無法開始測試</h2>
-          <p class="block-msg">測試會從主路由器開始，一路測到手機。主路由器 <b>${NODES[0].name}</b> 目前的韌體版本不支援此測試，所以即使其他節點支援，整條連線也都無法測試。</p>
-          ${skippedRows([{ ...NODES[0], place: `主路由器 · ${NODES[0].place}` }], '不支援')}
-          <div class="hop-skip sheet-callout"><span class="skip-i">i</span><span>想測試節點之間的連線，可以改用 <b>Advanced Test</b>，自行選擇兩台支援的節點對測。</span></div>
-          <button class="btn-primary skip-sheet-btn" data-go="advanced" data-label="改用 Advanced Test">改用 Advanced Test</button>
-          <button class="text-link skip-sheet-link" data-go="back">確定</button>
-        </div>`,
+      render: () => capBlockSheet(true),
+    },
+    {
+      id: 'home-cap-unsupported-noadv',
+      back: 'home',
+      code: '1_024',
+      name: 'CAP 不支援（無法開始，RE 不足兩台支援）',
+      description: 'CAP 不支援，且支援測試的 RE 不到兩台：Advanced Test 也無法對測，所以面板只說明主路由器韌體不支援，不推薦 Advanced，只有確定',
+      render: () => capBlockSheet(false),
     },
     {
       id: 'testing',
@@ -744,7 +755,7 @@
       id: 'testing-cap-b',
       back: 'home',
       code: '1_036',
-      name: '測試中（CAP 僅 TCP，手機連 CAP）',
+      name: '測試中（CAP 為 TCP，不支援手機）',
       description: '測試中（CAP 是 B、手機連在 CAP）：照 BT8 → BT10 → B10 → Phone 排，路由器之間照常測（TCP）；輪到手機時，手機變灰、退出主線，成為 B10 旁的灰色分支',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
@@ -853,7 +864,7 @@
       id: 'detail-cap-b',
       back: 'testing-cap-b',
       code: '1_054',
-      name: 'Detail Result 拓撲（CAP 僅 TCP，手機連 CAP）',
+      name: 'Detail Result 拓撲（CAP 為 TCP，不支援手機）',
       description: 'Detail Result（CAP 是 B、手機連在 CAP）：BT8 → BT10 → B10（只跑 TCP），手機是 B10 後面虛線旁的灰色分支，點了看原因；點卡片直接進 TCP 單段頁',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Done">Done</button>')}
@@ -1139,8 +1150,9 @@
         { label: '一台不支援', short: '一台不支援', value: 'skip', to: 'testing-skip' },
         { label: '兩台不支援（RE 全部不支援）', short: '兩台不支援', value: 'skip2-inline', to: 'testing-skip2-inline' },
         { label: '有一台僅支援 TCP（B）', short: '一台僅 TCP', value: 'tcp', to: 'testing-tcp' },
-        { label: 'CAP 僅 TCP，手機連在 CAP', short: 'CAP 僅 TCP', value: 'cap-b', to: 'testing-cap-b' },
+        { label: 'CAP 為 TCP，不支援手機', short: 'CAP 為 TCP', value: 'cap-b', to: 'testing-cap-b' },
         { label: 'CAP 不支援（無法開始）', short: 'CAP 不支援', value: 'cap-a', to: 'home-cap-unsupported' },
+        { label: 'CAP 不支援，RE 不足兩台支援（無 Advanced）', short: 'CAP 不支援・無 Adv', value: 'cap-a-noadv', to: 'home-cap-unsupported-noadv' },
       ],
     },
     protocol: {
