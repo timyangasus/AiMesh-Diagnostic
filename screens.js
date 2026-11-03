@@ -69,7 +69,7 @@
     { name: 'ZenWiFi BT10(Kitchen)', ip: '192.168.52.12' },
     { name: 'ZenWiFi B10(Bedroom)', ip: '192.168.34.16', fw: false },
     { name: 'ZenWiFi BT10(Office)', ip: '192.168.11.45' },
-    { name: 'ZenWiFi BT10(Garage)', ip: '192.168.36.1', noPhone: true },
+    { name: 'ZenWiFi BT10(Garage)', ip: '192.168.36.8', noPhone: true },
     { name: 'RT-AX3000', ip: '192.168.22.26', noPhone: true },
   ];
   const CLIENTS = [
@@ -78,7 +78,7 @@
     { name: 'GT-AX11000(2F)', ip: '192.168.34.20' },
     { name: 'ZenWiFi BT10(Office)', ip: '192.168.11.45' },
     { name: 'iPhone 16', ip: '192.168.36.1', phone: true },
-    { name: 'ZenWiFi BT10(Garage)', ip: '192.168.36.1', noPhone: true }, // case B on the Client side too, for a one-step demo
+    { name: 'ZenWiFi BT10(Garage)', ip: '192.168.36.8', noPhone: true }, // case B on the Client side too, for a one-step demo
   ];
   const LOCATIONS = ['Home', 'Living Room', 'Bedroom', 'Kitchen', 'Study', 'Third Floor', 'Attic', 'Balcony', 'Yard', 'Garage', 'Office'];
 
@@ -651,7 +651,7 @@
         <div class="sheet">
           <button class="sheet-close" data-go="back" aria-label="關閉">${ICON.closeCircle}</button>
           <h2>Scan on the go to find dead zones.</h2>
-          <p>Bring your phone to different locations and tap '<button class="inline-link" data-go="testing">Start</button>' to analyze the signal quality in that area.</p>
+          <p>Bring your phone to different locations and tap '<button class="inline-link" data-decide="nodes">Start</button>' to analyze the signal quality in that area.</p>
           <p>To diagnose a specific segment, use '<button class="inline-link" data-go="advanced">Advanced Test</button>' below</p>
         </div>`,
     },
