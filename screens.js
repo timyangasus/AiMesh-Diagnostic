@@ -240,10 +240,16 @@
     await wait(100);
   }
 
-  // Auto-advance in place: back from the next page skips the finished test
-  const advance = (from, id) => setTimeout(() => {
+  // Auto-advance in place: back from the next page skips the finished test.
+  // stack: keep the test in history instead, so back from the next page returns to it
+  const advance = (from, id, stack) => setTimeout(() => {
     if (location.hash !== `#${from}`) return;
     const st = history.state;
+    if (stack) {
+      location.hash = id;
+      history.replaceState({ aimesh: (st?.aimesh || 0) + 1 }, '');
+      return;
+    }
     location.replace(`#${id}`);
     history.replaceState(st, '');
   }, 300);
@@ -373,10 +379,8 @@
 
   // Demo-only dots under the testing page: switch scenario in place (replace, so Back isn't stacked)
   // Each group: [screen id, label]
-  const TEST_IDS = [['testing', '全部支援'], ['testing-skip', '一台不支援'], ['testing-skip2-inline', '兩台不支援'], ['testing-tcp', '有一台僅支援 TCP'], ['testing-cap-b', 'CAP 僅 TCP（手機連 CAP）']];
   // Problem-scenario result pages (1_041–1_043) are hidden for now: those tests go straight to Detail Result
   const RESULT_IDS = [['result', '全部支援']];
-  const DETAIL_IDS = [['detail', '全部支援'], ['detail-skip', '一台不支援'], ['detail-skip2', '兩台不支援'], ['detail-tcp', '有一台僅支援 TCP'], ['detail-cap-b', 'CAP 僅 TCP（手機連 CAP）']];
   const scenarioDots = (group, current) => group.length < 2 ? '' : `
     <div class="demo-dots">${group.map(([id, label]) =>
       `<button class="${id === current ? 'on' : ''}" data-scenario="${id}" title="${label}" aria-label="${label}"></button>`).join('')}</div>`;
@@ -472,20 +476,19 @@
   const skipTesting = (id, path, beside, list) => `
     ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
     <div class="body">${topology(false, '', path, beside)}</div>
-    ${scenarioDots(TEST_IDS, id)}
     ${PAUSE_BTN}
     ${skipSheet(list)}`;
   // run(el, onDone): runs the test (default: hop by hop along path)
   const mountSkipTesting = (id, path, next, run = (el, done) => runTest(el, path.hops, done)) => el => {
     let finished = false;
     mountDots(el);
-    const pause = mountPause(el, () => { saveRun(path.hops); advance(id, next); });
-    const sheetOpen = mountSheet(el, () => { if (finished) advance(id, next); });
+    const pause = mountPause(el, () => { saveRun(path.hops); advance(id, next, true); });
+    const sheetOpen = mountSheet(el, () => { if (finished) advance(id, next, true); });
     const stop = run(el, () => {
       pause.done();
       saveRun(path.hops);
       finished = true;
-      if (!sheetOpen()) advance(id, next);
+      if (!sheetOpen()) advance(id, next, true);
     });
     return () => { stop(); pause.cleanup(); };
   };
@@ -528,7 +531,7 @@
 
   function historyCards() {
     return HISTORY.map(r => `
-      <div class="h-card" data-go="result" data-rec="${r.id}">
+      <div class="h-card" data-go="detail" data-rec="${r.id}">
         <button class="h-more" data-go="history-actions" data-rec="${r.id}" aria-label="更多">${ICON.more}</button>
         <div class="h-top">
           <div><div class="h-at">${r.at}</div><div class="h-note">${esc(r.note)}</div></div>
@@ -645,6 +648,7 @@
     },
     {
       id: 'home-unsupported',
+      hidden: true, // hidden for now: all REs unsupported is just the two-unsupported case (1_034), no warning first
       back: 'home',
       code: '1_022',
       name: 'RE 全部不支援（先提示）',
@@ -657,7 +661,7 @@
           <h2>其他節點不支援此測試</h2>
           <p>以下節點的韌體版本不支援此測試：</p>
           ${skippedRows(SKIPPED_2, '不支援')}
-          <p>本次只會測試 ${NODES[0].name} 與手機之間的連線。</p>
+          <div class="hop-skip sheet-callout"><span class="skip-i">i</span><span>本次只會測試 <b>${NODES[0].name}</b> 與<b>手機</b>之間的連線。</span></div>
           <button class="btn-primary skip-sheet-btn" data-go="testing-skip2-inline" data-label="開始測試">開始測試</button>
           <button class="text-link skip-sheet-link" data-go="back">取消</button>
         </div>`,
@@ -667,15 +671,19 @@
       back: 'home',
       code: '1_023',
       name: 'CAP 不支援（無法開始）',
-      description: 'CAP 不支援（case A）：測試從 CAP 開始，CAP 不能測就沒有上一層可改接，按 Start 直接跳出面板，無法開始',
+      description: 'CAP 不支援（case A）：測試從 CAP 開始，CAP 不能測就沒有上一層可改接，按 Start 直接跳出面板，說明是主路由器韌體導致整條無法測，建議改用 Advanced Test 讓節點間對測',
       render: () => `
         ${homeContent()}
         <div class="overlay" data-go="back"></div>
-        <div class="sheet skip-sheet">
+        <div class="sheet skip-sheet block-sheet">
           <button class="sheet-close" data-go="back" aria-label="關閉">${ICON.closeCircle}</button>
+          <div class="block-hero"><span class="face">${ICON[NODES[0].icon]}</span><span class="skip-i">i</span></div>
           <h2>無法開始測試</h2>
-          <p>路由器 ${NODES[0].name}（${NODES[0].place}）目前的韌體版本不支援此測試，因此無法開始。</p>
-          <button class="btn-primary skip-sheet-btn" data-go="back">確定</button>
+          <p class="block-msg">測試會從主路由器開始，一路測到手機。主路由器 <b>${NODES[0].name}</b> 目前的韌體版本不支援此測試，所以即使其他節點支援，整條連線也都無法測試。</p>
+          ${skippedRows([{ ...NODES[0], place: `主路由器 · ${NODES[0].place}` }], '不支援')}
+          <div class="hop-skip sheet-callout"><span class="skip-i">i</span><span>想測試節點之間的連線，可以改用 <b>Advanced Test</b>，自行選擇兩台支援的節點對測。</span></div>
+          <button class="btn-primary skip-sheet-btn" data-go="advanced" data-label="改用 Advanced Test">改用 Advanced Test</button>
+          <button class="text-link skip-sheet-link" data-go="back">確定</button>
         </div>`,
     },
     {
@@ -688,12 +696,11 @@
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(false)}</div>
-        ${scenarioDots(TEST_IDS, 'testing')}
         ${PAUSE_BTN}`,
       mount: el => {
         mountDots(el);
-        const pause = mountPause(el, () => { saveRun(HOPS); advance('testing', 'result'); });
-        const stop = runTest(el, HOPS, () => { pause.done(); saveRun(HOPS); advance('testing', 'result'); });
+        const pause = mountPause(el, () => { saveRun(HOPS); advance('testing', 'detail', true); });
+        const stop = runTest(el, HOPS, () => { pause.done(); saveRun(HOPS); advance('testing', 'detail', true); });
         return () => { stop(); pause.cleanup(); };
       },
     },
@@ -702,9 +709,10 @@
       back: 'home',
       code: '1_031',
       name: '測試中（一台不支援）',
-      description: '測試中（有一台不支援）：開始前就知道 B10 不支援，一開始就畫主線 BT8 → BT10 → Phone，B10 是灰色分支；點灰色分支可看原因，測試不中斷；測完自動進結果頁，面板開著時等關掉再跳',
-      render: () => skipTesting('testing-skip', SKIP_PATH, { 1: skippedBranch(SKIPPED, true) }, [SKIPPED]),
-      mount: mountSkipTesting('testing-skip', SKIP_PATH, 'detail-skip'),
+      description: '測試中（有一台不支援）：一開始照使用者認知的 4 台排好，測到 B10 時變灰、退出主線，變成 BT10 → Phone 旁的灰色分支，接著測 BT10 → Phone；點灰色分支可看原因，測試不中斷；測完自動進 Detail，面板開著時等關掉再跳',
+      render: () => skipTesting('testing-skip', FULL_PATH, { 1: skippedBranch(SKIPPED, true) }, [SKIPPED]).replace('<div class="body">', '<div class="body skip-inline">'),
+      mount: mountSkipTesting('testing-skip', SKIP_PATH, 'detail-skip',
+        (el, done) => runInLine(el, [2], SKIP_PATH.hops, done)),
     },
     {
       id: 'testing-skip2',
@@ -735,7 +743,6 @@
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(false, '', FULL_PATH)}</div>
-        ${scenarioDots(TEST_IDS, 'testing-tcp')}
         ${PAUSE_BTN}`,
       mount: mountSkipTesting('testing-tcp', FULL_PATH, 'detail-tcp'),
     },
@@ -748,13 +755,13 @@
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body skip-inline">${topology(false, '', FULL_PATH, { 2: skippedBranch(CAP_PHONE, true) })}</div>
-        ${scenarioDots(TEST_IDS, 'testing-cap-b')}
         ${PAUSE_BTN}
         ${capPhoneSheet()}`,
       mount: mountSkipTesting('testing-cap-b', CAPB_PATH, 'detail-cap-b', runCapB),
     },
     {
       id: 'result',
+      hidden: true, // hidden for now: the test and Testing History go straight to Detail Result
       back: 'home',
       theme: 'gray',
       code: '1_040',
@@ -766,15 +773,15 @@
     },
     {
       id: 'detail',
-      back: 'result',
+      back: 'testing',
       code: '1_050',
       name: 'Detail Result 拓撲',
       description: 'Detail Result：每一段連線的上下行速度，綠色是良好、橘色是偏慢，點卡片看那一段的詳細數據',
       figmaNode: '294:409',
       render: () => `
-        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="result" data-label="Cancel">Cancel</button>')}
+        ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(true, 'data-decide="protocol"')}</div>
-        ${scenarioDots(DETAIL_IDS, 'detail')}`,
+        `,
       mount: el => { mountDots(el); rememberHop(FULL_PATH)(el); },
     },
     {
@@ -790,14 +797,14 @@
     },
     {
       id: 'detail-skip',
-      back: 'home',
+      back: 'testing-skip',
       code: '1_051',
       name: 'Detail Result 拓撲（有一台不支援）',
       description: 'Detail Result（有一台不支援）：主線 BT8 → BT10 → Phone，B10 灰色分支；點分支（ⓘ 不支援）看原因',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(true, 'data-decide="protocol"', SKIP_PATH, { 1: skippedBranch(SKIPPED, true) })}</div>
-        ${scenarioDots(DETAIL_IDS, 'detail-skip')}
+        
         ${skipSheet([SKIPPED])}`,
       mount: el => { mountDots(el); rememberHop(SKIP_PATH)(el); mountSheet(el); },
     },
@@ -814,14 +821,14 @@
     },
     {
       id: 'detail-skip2',
-      back: 'home',
+      back: 'testing-skip2-inline',
       code: '1_052',
       name: 'Detail Result 拓撲（兩台不支援）',
       description: 'Detail Result（兩台不支援）：主線 BT8 → Phone，BT10、B10 兩個灰色分支疊在旁邊；點分支（ⓘ 不支援）看兩台清單與原因',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(true, 'data-decide="protocol"', SKIP2_PATH, { 0: skippedGroup(SKIPPED_2, true) })}</div>
-        ${scenarioDots(DETAIL_IDS, 'detail-skip2')}
+        
         ${skipSheet(SKIPPED_2)}`,
       mount: el => { mountDots(el); rememberHop(SKIP2_PATH)(el); mountSheet(el); },
     },
@@ -838,26 +845,26 @@
     },
     {
       id: 'detail-tcp',
-      back: 'home',
+      back: 'testing-tcp',
       code: '1_053',
       name: 'Detail Result 拓撲（有一台僅支援 TCP）',
       description: 'Detail Result（有一台 B）：拓撲照常，只跑了 TCP，所以點卡片直接進 TCP 單段頁（不問 UDP / TCP）；每段的單段頁都有「本次僅以 TCP 測試」說明與 FAQ',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body">${topology(true, 'data-go="hop-tcp"', TCP_PATH)}</div>
-        ${scenarioDots(DETAIL_IDS, 'detail-tcp')}`,
+        `,
       mount: el => { mountDots(el); rememberHop(TCP_PATH)(el); },
     },
     {
       id: 'detail-cap-b',
-      back: 'home',
+      back: 'testing-cap-b',
       code: '1_054',
       name: 'Detail Result 拓撲（CAP 僅 TCP，手機連 CAP）',
       description: 'Detail Result（CAP 是 B、手機連在 CAP）：BT8 → BT10 → B10（只跑 TCP），手機是 B10 後面虛線旁的灰色分支，點了看原因；點卡片直接進 TCP 單段頁',
       render: () => `
         ${navbar('AiMesh Diagnostic', backBtn, '<button class="navbar-text" data-go="home" data-label="Cancel">Cancel</button>')}
         <div class="body">${capBTopology()}</div>
-        ${scenarioDots(DETAIL_IDS, 'detail-cap-b')}
+        
         ${capPhoneSheet()}`,
       mount: el => { mountDots(el); rememberHop(CAPB_PATH)(el); mountSheet(el); },
     },
@@ -881,6 +888,7 @@
     },
     {
       id: 'suggestions',
+      hidden: true, // hidden with 1_040: only the result page links here
       back: 'result',
       theme: 'gray',
       code: '1_080',
@@ -1135,9 +1143,8 @@
       options: [
         { label: '全部支援', short: '全部支援', value: 'all', to: 'testing' },
         { label: '一台不支援', short: '一台不支援', value: 'skip', to: 'testing-skip' },
-        { label: '兩台不支援', short: '兩台不支援', value: 'skip2-inline', to: 'testing-skip2-inline' },
+        { label: '兩台不支援（RE 全部不支援）', short: '兩台不支援', value: 'skip2-inline', to: 'testing-skip2-inline' },
         { label: '有一台僅支援 TCP（B）', short: '一台僅 TCP', value: 'tcp', to: 'testing-tcp' },
-        { label: 'RE 全部不支援（先提示）', short: 'RE 全部不支援', value: 'none', to: 'home-unsupported' },
         { label: 'CAP 僅 TCP，手機連在 CAP', short: 'CAP 僅 TCP', value: 'cap-b', to: 'testing-cap-b' },
         { label: 'CAP 不支援（無法開始）', short: 'CAP 不支援', value: 'cap-a', to: 'home-cap-unsupported' },
       ],
