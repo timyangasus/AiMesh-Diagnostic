@@ -257,7 +257,7 @@
 
   // Auto-advance in place: back from the next page skips the finished test.
   // stack: keep the test in history instead, so back from the next page returns to it
-  const advance = (from, id, stack) => setTimeout(() => {
+  const advance = (from, id, stack, delay = 300) => setTimeout(() => {
     if (location.hash !== `#${from}`) return;
     const st = history.state;
     if (stack) {
@@ -267,7 +267,15 @@
     }
     location.replace(`#${id}`);
     history.replaceState(st, '');
-  }, 300);
+  }, delay);
+
+  // A test that ran to the end holds on its finished topology for a moment with a 「測試完成」 badge
+  // before moving on, so the user sees it finish instead of being jumped away (next skips this)
+  const DONE_MS = 1200;
+  const showDone = el => {
+    if (el.querySelector('.test-done')) return;
+    el.insertAdjacentHTML('beforeend', `<div class="test-done" role="status"><span class="test-done-check">${ICON.check}</span>測試完成</div>`);
+  };
 
   // Run the test hop by hop on a rendered topology; returns a cleanup that stops it
   // ms: how long each hop runs
@@ -498,12 +506,13 @@
     let finished = false;
     mountDots(el);
     const pause = mountPause(el, () => { saveRun(path.hops); advance(id, next, true); });
-    const sheetOpen = mountSheet(el, () => { if (finished) advance(id, next, true); });
+    const sheetOpen = mountSheet(el, () => { if (finished) advance(id, next, true, DONE_MS); });
     const stop = run(el, () => {
       pause.done();
       saveRun(path.hops);
       finished = true;
-      if (!sheetOpen()) advance(id, next, true);
+      showDone(el);
+      if (!sheetOpen()) advance(id, next, true, DONE_MS);
     });
     return () => { stop(); pause.cleanup(); };
   };
@@ -705,7 +714,7 @@
       mount: el => {
         mountDots(el);
         const pause = mountPause(el, () => { saveRun(HOPS); advance('testing', 'detail', true); });
-        const stop = runTest(el, HOPS, () => { pause.done(); saveRun(HOPS); advance('testing', 'detail', true); });
+        const stop = runTest(el, HOPS, () => { pause.done(); saveRun(HOPS); showDone(el); advance('testing', 'detail', true, DONE_MS); });
         return () => { stop(); pause.cleanup(); };
       },
     },
@@ -1095,9 +1104,9 @@
         ${PAUSE_BTN}`,
       mount: el => {
         const path = advPath();
-        const finish = () => { STATE.path = path; STATE.hop = 0; advance('advanced-testing', 'advanced-result'); };
-        const pause = mountPause(el, finish);
-        const stop = runTest(el, path.hops, () => { pause.done(); finish(); });
+        const finish = delay => { STATE.path = path; STATE.hop = 0; advance('advanced-testing', 'advanced-result', false, delay); };
+        const pause = mountPause(el, () => finish());
+        const stop = runTest(el, path.hops, () => { pause.done(); showDone(el); finish(DONE_MS); });
         return () => { stop(); pause.cleanup(); };
       },
     },
