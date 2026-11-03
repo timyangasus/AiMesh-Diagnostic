@@ -58,7 +58,7 @@
   const CAP_PHONE = { name: 'Phone', place: `連在 ${NODES[0].name}`, icon: 'phone' };
   const CAPB_PATH = { nodes: NODES.slice(0, 3), hops: HOPS.slice(0, 2), tcpOnly: NODES[0] };
   const WEAK_BELOW = 50; // Mbps download; below this a link is drawn orange
-  const HOP_MS = 12000;  // how long each hop's test runs (close to a real test; pause / next skip ahead in demos)
+  const HOP_MS = 6000;   // how long each hop's test runs (shortened for demos; pause / next skip ahead)
 
   // Devices for Advanced Test (Select Server / Select Client)
   // fw: false = firmware doesn't support the test (case A)
